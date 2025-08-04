@@ -2,7 +2,9 @@
 
 ## Overview
 
-TopicSense is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, TopicSense integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
+TopicSense is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, TopicSense integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
+
+**NEW: Live Audio Topic Detection** - TopicSense now features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
 The system implements a sophisticated architecture where topics emerge from weighted node convergence using clustering algorithms, allowing for dynamic discovery of new patterns and categories in text data. This approach enables the system to adapt and learn from usage patterns while maintaining high classification accuracy.
 
@@ -26,18 +28,22 @@ Preferred communication style: Simple, everyday language.
 
 ### Core Services
 - **RAG Engine**: Central classification engine coordinating embeddings, similarity search, and prediction
-- **Embedding Service**: Text-to-vector conversion using sentence-transformers (all-MiniLM-L6-v2)
+- **Audio Processor**: Real-time audio transcription and topic detection service
+- **Embedding Service**: Text-to-vector conversion using rule-based and semantic approaches
 - **Topic Detector**: Clustering-based topic emergence detection with configurable thresholds
-- **Vector Similarity Search**: PostgreSQL pgvector with IVFFLAT indexing for fast nearest-neighbor search
+- **Vector Similarity Search**: Text-based similarity search with future PostgreSQL pgvector integration
 
 ### API Architecture
 - **Classification Endpoint**: `/api/v1/classify` for single text classification
+- **Audio Processing Endpoints**: `/api/v1/audio/*` for real-time audio analysis and file upload
 - **Topics Management**: `/api/v1/topics` for topic discovery and retrieval
 - **Batch Processing**: Support for processing up to 100 texts simultaneously
+- **Live Audio Streaming**: Real-time topic updates with WebSocket-ready architecture
 - **Confidence Scoring**: Each classification includes confidence scores and similar topic/node discovery
 
 ### Frontend Components
 - **Web Interface**: Bootstrap-based dark theme UI for testing and documentation
+- **Live Audio Interface**: Real-time audio topic detection with visual feedback and transcription
 - **API Documentation**: Interactive documentation with code examples
 - **Test Interface**: Real-time classification testing with metadata support
 

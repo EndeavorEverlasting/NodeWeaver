@@ -2,7 +2,7 @@ modules = ["python-3.11"]
 
 [nix]
 channel = "stable-25_05"
-packages = ["glibcLocales", "openssl", "postgresql"]
+packages = ["glibcLocales", "openssl", "postgresql", "ffmpeg", "portaudio", "alsa-utils"]
 
 [deployment]
 deploymentTarget = "autoscale"
@@ -44,3 +44,6 @@ args = "cd /home/runner/AxTask && uv add sentence-transformers numpy scikit-lear
 [[ports]]
 localPort = 5000
 externalPort = 80
+
+[agent]
+integrations = ["python_openai==1.0.0"]

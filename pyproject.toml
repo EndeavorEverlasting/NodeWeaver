@@ -8,11 +8,16 @@ dependencies = [
     "flask>=3.1.1",
     "flask-sqlalchemy>=3.1.1",
     "gunicorn>=23.0.0",
+    "librosa",
     "numpy",
     "pgvector",
     "psycopg2-binary>=2.9.10",
+    "pyaudio",
+    "pydub",
     "scikit-learn",
     "sentence-transformers",
+    "speechrecognition",
+    "webrtcvad",
 ]
 
 [[tool.uv.index]]

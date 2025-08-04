@@ -45,9 +45,15 @@ def create_app():
     # Register blueprints
     from api.classifier import classifier_bp
     from api.topics import topics_bp
+    from api.audio import audio_bp, init_audio_processor
     
     app.register_blueprint(classifier_bp, url_prefix='/api/v1')
     app.register_blueprint(topics_bp, url_prefix='/api/v1')
+    app.register_blueprint(audio_bp, url_prefix='/api/v1')
+    
+    # Initialize audio processor
+    with app.app_context():
+        init_audio_processor(app.rag_engine)
     
     # Main routes
     @app.route('/')
@@ -61,6 +67,10 @@ def create_app():
     @app.route('/test')
     def test_interface():
         return render_template('test_interface.html')
+    
+    @app.route('/live')
+    def live_audio():
+        return render_template('live_audio.html')
     
     @app.errorhandler(404)
     def not_found(error):
