@@ -24,6 +24,7 @@ class Config:
     
     # API configuration
     API_VERSION = 'v1'
+    APP_VERSION = '1.0.0'
     MAX_INPUT_LENGTH = int(os.environ.get('MAX_INPUT_LENGTH', '10000'))
     
     # Logging configuration

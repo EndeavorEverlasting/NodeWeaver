@@ -72,6 +72,38 @@ def create_app():
     def live_audio():
         return render_template('live_audio.html')
     
+    # Health check and version endpoints
+    @app.route('/health')
+    def health_check():
+        """Health check endpoint for load balancers and monitoring"""
+        from config import Config
+        from datetime import datetime
+        try:
+            # Basic database connectivity check
+            db.session.execute(db.text('SELECT 1'))
+            db_status = 'healthy'
+        except Exception as e:
+            logger.error(f"Database health check failed: {e}")
+            db_status = 'unhealthy'
+        
+        return {
+            'status': 'healthy' if db_status == 'healthy' else 'unhealthy',
+            'version': Config.APP_VERSION,
+            'database': db_status,
+            'timestamp': datetime.utcnow().isoformat() + 'Z'
+        }, 200 if db_status == 'healthy' else 503
+    
+    @app.route('/api/v1/version')
+    def version_info():
+        """Get application version information"""
+        from config import Config
+        return {
+            'version': Config.APP_VERSION,
+            'api_version': Config.API_VERSION,
+            'name': 'TopicSense',
+            'description': 'RAG Classifier API for automatic task categorization with audio processing capabilities'
+        }
+    
     @app.errorhandler(404)
     def not_found(error):
         return jsonify({'error': 'Endpoint not found'}), 404
