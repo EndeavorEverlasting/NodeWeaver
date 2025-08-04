@@ -23,7 +23,7 @@ class SimpleRAGEngine:
         logger.info("Simple RAG Engine initialized")
     
     def classify_text(self, text: str, metadata: Dict = None) -> Dict[str, Any]:
-        """Classify input text and return category prediction with confidence"""
+        """Classify input text and return multiple topics/categories with confidence scores"""
         try:
             if not text or len(text.strip()) == 0:
                 raise ValueError("Empty text provided")
@@ -31,40 +31,54 @@ class SimpleRAGEngine:
             # Generate embedding for input text
             text_embedding = self.embedding_service.encode(text)
             
-            # Simple rule-based classification
-            predicted_category, confidence = self._predict_category_simple(text)
+            # Multi-label classification - get all matching categories
+            classification_results = self._predict_categories_multi(text)
             
-            # Create document record
+            # Get primary category (highest confidence)
+            primary_category = classification_results[0] if classification_results else {'category': 'other', 'confidence': 0.3}
+            
+            # Find similar existing topics
+            similar_topics = self.find_similar_topics(text, limit=5, threshold=0.4)
+            
+            # Create document record with topic associations
+            topic_ids = [topic['topic_id'] for topic in similar_topics[:3]]  # Associate with top 3 similar topics
+            
             doc = Document(
                 content=text,
                 embedding=json.dumps(text_embedding),
-                predicted_category=predicted_category,
-                confidence_score=confidence,
+                predicted_category=primary_category['category'],
+                confidence_score=primary_category['confidence'],
+                topic_ids=topic_ids,
                 meta_data=metadata or {}
             )
             
             self.db.session.add(doc)
             self.db.session.commit()
             
-            # Log classification
+            # Log classification with multiple categories
             log = ClassificationLog(
                 input_text=text,
-                predicted_category=predicted_category,
-                confidence_score=confidence,
-                similar_topics=[],
+                predicted_category=primary_category['category'],
+                confidence_score=primary_category['confidence'],
+                similar_topics=[topic['topic_id'] for topic in similar_topics],
                 similar_nodes=[],
                 processing_time=0.1,
-                meta_data=metadata or {}
+                meta_data={
+                    **(metadata or {}),
+                    'all_categories': classification_results,
+                    'topic_associations': topic_ids
+                }
             )
             
             self.db.session.add(log)
             self.db.session.commit()
             
             return {
-                'predicted_category': predicted_category,
-                'confidence_score': confidence,
-                'similar_topics': [],
-                'similar_nodes': [],
+                'predicted_category': primary_category['category'],
+                'confidence_score': primary_category['confidence'],
+                'all_categories': classification_results,
+                'similar_topics': similar_topics,
+                'topic_associations': topic_ids,
                 'document_id': doc.doc_id
             }
             
@@ -72,62 +86,79 @@ class SimpleRAGEngine:
             logger.error(f"Text classification failed: {str(e)}")
             raise
     
-    def _predict_category_simple(self, text: str) -> tuple:
-        """Simple rule-based category prediction"""
+    def _predict_categories_multi(self, text: str) -> List[Dict[str, Any]]:
+        """Multi-label classification - return all matching categories with confidence scores"""
         text_lower = text.lower().strip()
+        categories = []
         
-        # Work-related keywords
-        work_keywords = ['work', 'job', 'office', 'meeting', 'client', 'project', 'deadline', 'business', 'colleague', 'boss']
-        if any(keyword in text_lower for keyword in work_keywords):
-            return 'work', 0.8
+        # Define keyword categories with scoring
+        category_keywords = {
+            'work': {
+                'keywords': ['work', 'job', 'office', 'meeting', 'client', 'project', 'deadline', 'business', 'colleague', 'boss', 'schedule', 'conference', 'presentation'],
+                'base_confidence': 0.8
+            },
+            'personal': {
+                'keywords': ['personal', 'family', 'home', 'myself', 'friend', 'hobby', 'vacation', 'weekend', 'birthday', 'gift', 'celebration', 'party', 'relationship'],
+                'base_confidence': 0.8
+            },
+            'shopping': {
+                'keywords': ['shopping', 'store', 'purchase', 'retail', 'order', 'delivery', 'product', 'find', 'get', 'buy', 'cake', 'food', 'groceries', 'market', 'price'],
+                'base_confidence': 0.7
+            },
+            'academic': {
+                'keywords': ['study', 'school', 'learn', 'academic', 'research', 'university', 'exam', 'homework', 'class', 'education', 'course', 'assignment'],
+                'base_confidence': 0.8
+            },
+            'health': {
+                'keywords': ['health', 'doctor', 'medical', 'sick', 'hospital', 'medicine', 'exercise', 'diet', 'wellness', 'fitness', 'treatment'],
+                'base_confidence': 0.8
+            },
+            'finance': {
+                'keywords': ['money', 'buy', 'pay', 'finance', 'bank', 'budget', 'investment', 'expense', 'income', 'cost', 'payment', 'savings'],
+                'base_confidence': 0.8
+            },
+            'technology': {
+                'keywords': ['technology', 'computer', 'software', 'app', 'website', 'internet', 'digital', 'code', 'tech', 'online', 'system'],
+                'base_confidence': 0.7
+            },
+            'entertainment': {
+                'keywords': ['movie', 'music', 'game', 'entertainment', 'tv', 'show', 'concert', 'sports', 'fun', 'play', 'watch'],
+                'base_confidence': 0.7
+            },
+            'travel': {
+                'keywords': ['travel', 'trip', 'vacation', 'hotel', 'flight', 'destination', 'tourism', 'visit', 'journey'],
+                'base_confidence': 0.7
+            },
+            'political': {
+                'keywords': ['political', 'government', 'policy', 'vote', 'election', 'senator', 'congress', 'politics', 'law'],
+                'base_confidence': 0.7
+            }
+        }
         
-        # Personal keywords
-        personal_keywords = ['personal', 'family', 'home', 'myself', 'friend', 'hobby', 'vacation', 'weekend', 'birthday', 'gift', 'celebration', 'party']
-        if any(keyword in text_lower for keyword in personal_keywords):
-            return 'personal', 0.8
+        # Score each category based on keyword matches
+        for category, config in category_keywords.items():
+            matches = sum(1 for keyword in config['keywords'] if keyword in text_lower)
+            if matches > 0:
+                # Calculate confidence based on number of matches and base confidence
+                confidence = min(0.9, config['base_confidence'] + (matches - 1) * 0.05)
+                categories.append({
+                    'category': category,
+                    'confidence': confidence,
+                    'keyword_matches': matches
+                })
         
-        # Academic keywords
-        academic_keywords = ['study', 'school', 'learn', 'academic', 'research', 'university', 'exam', 'homework', 'class']
-        if any(keyword in text_lower for keyword in academic_keywords):
-            return 'academic', 0.8
+        # Sort by confidence (highest first)
+        categories.sort(key=lambda x: x['confidence'], reverse=True)
         
-        # Health keywords
-        health_keywords = ['health', 'doctor', 'medical', 'sick', 'hospital', 'medicine', 'exercise', 'diet']
-        if any(keyword in text_lower for keyword in health_keywords):
-            return 'health', 0.8
+        # If no matches, return 'other'
+        if not categories:
+            categories.append({
+                'category': 'other',
+                'confidence': 0.3,
+                'keyword_matches': 0
+            })
         
-        # Finance keywords
-        finance_keywords = ['money', 'buy', 'pay', 'finance', 'bank', 'budget', 'investment', 'expense', 'income']
-        if any(keyword in text_lower for keyword in finance_keywords):
-            return 'finance', 0.8
-        
-        # Technology keywords
-        tech_keywords = ['technology', 'computer', 'software', 'app', 'website', 'internet', 'digital', 'code']
-        if any(keyword in text_lower for keyword in tech_keywords):
-            return 'technology', 0.7
-        
-        # Entertainment keywords
-        entertainment_keywords = ['movie', 'music', 'game', 'entertainment', 'tv', 'show', 'concert', 'sports']
-        if any(keyword in text_lower for keyword in entertainment_keywords):
-            return 'entertainment', 0.7
-        
-        # Travel keywords
-        travel_keywords = ['travel', 'trip', 'vacation', 'hotel', 'flight', 'destination', 'tourism']
-        if any(keyword in text_lower for keyword in travel_keywords):
-            return 'travel', 0.7
-        
-        # Shopping keywords
-        shopping_keywords = ['shopping', 'store', 'purchase', 'retail', 'order', 'delivery', 'product', 'find', 'get', 'buy', 'cake', 'food', 'groceries', 'market']
-        if any(keyword in text_lower for keyword in shopping_keywords):
-            return 'shopping', 0.7
-        
-        # Political keywords
-        political_keywords = ['political', 'government', 'policy', 'vote', 'election', 'senator', 'congress']
-        if any(keyword in text_lower for keyword in political_keywords):
-            return 'political', 0.7
-        
-        # Default to 'other' with lower confidence
-        return 'other', 0.5
+        return categories
     
     def get_topics(self, limit: int = 10) -> List[Dict]:
         """Get all topics"""

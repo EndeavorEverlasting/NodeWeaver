@@ -1,5 +1,29 @@
 # NodeWeaver Version History
 
+## Version 1.0.2 (2025-08-04) - Multi-Classification Enhancement
+
+### 🚀 Major Features
+- **Multi-label Classification**: Entries can now have multiple topics/categories with individual confidence scores
+- **Many-to-Many Relationships**: Business rule updated to support entries relating to multiple topics and topics having multiple entries
+- **Enhanced Topic Associations**: Documents automatically associate with similar existing topics
+- **Comprehensive Classification Results**: API returns all matching categories, not just the primary one
+
+### 🔄 Changed Business Rules
+- **Entry-Topic Relationship**: One entry can have many topics/classifications
+- **Topic-Entry Relationship**: One topic can relate to many entries  
+- **Confidence Scoring**: Each category association has individual confidence scores
+- **Primary Classification**: Highest confidence category remains as primary for backward compatibility
+
+### 🔧 Technical Updates
+- Classification engine now returns `all_categories` array with confidence scores for each match
+- Document model enhanced with `topic_associations` for many-to-many relationships
+- Classification logs now store multiple category matches and topic associations
+- Improved keyword matching with better confidence scoring based on multiple matches
+- `classify_text()` method completely rewritten for multi-label support
+- New `_predict_categories_multi()` method replaces single-category prediction
+
+---
+
 ## Version 1.0.1 (2025-08-04) - Bug Fix Release
 
 ### 🐛 Bug Fixes
