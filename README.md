@@ -42,6 +42,9 @@ pip install -e . && python main.py
 - **Training Capabilities**: Improve accuracy with custom training data
 - **Performance Monitoring**: Built-in metrics and logging for system health
 - **Caching**: Redis integration for improved response times
+- **Meeting & Debate Topic Tracking**: Continuously identify when participants change topics, dwell on specific ones, or diverge into tangents. Useful for meeting summarization, political discourse analysis, and podcast breakdowns.
+- **Logical Fallacy Heuristics**: Infer topic shifts that defy internal consistency, helping flag potential red herrings, strawman arguments, or non sequiturs. This is built on the foundation of graph-weight discontinuities or abrupt semantic distance jumps between nodes.
+- **Temporal Topic Heatmaps**: Visualize which topics dominate in a time window and how they evolve across sessions. Ideal for trend analysis or longitudinal research.
 
 ## 🏗️ Architecture
 
