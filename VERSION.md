@@ -1,5 +1,19 @@
 # TopicSense Version History
 
+## Version 1.0.1 (2025-08-04) - Bug Fix Release
+
+### 🐛 Bug Fixes
+- **Flask Extensions Compatibility**: Fixed LSP type checking errors for Flask app.rag_engine attribute
+- **Service Initialization**: Moved RAG engine to proper Flask extensions pattern using app.extensions dictionary
+- **Application Startup**: Resolved AttributeError during application initialization in production mode
+
+### 🔧 Technical Changes
+- Implemented proper Flask extensions pattern for service storage
+- Added extensions dictionary initialization for better Flask compatibility
+- Enhanced error handling during service initialization
+
+---
+
 ## Version 1.0.0 (2025-08-04) - Production Release
 
 ### 🎉 Major Features

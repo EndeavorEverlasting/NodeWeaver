@@ -5,6 +5,19 @@ All notable changes to TopicSense will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2025-08-04
+
+### Fixed
+- Flask extensions compatibility issue causing LSP type checking errors
+- Service initialization pattern to use proper Flask extensions approach
+- Application startup AttributeError in production deployment
+- RAG engine storage using app.extensions['rag_engine'] instead of direct attribute
+
+### Technical Details
+- Moved from `app.rag_engine = SimpleRAGEngine(db)` to `app.extensions['rag_engine'] = rag_engine`
+- Added proper extensions dictionary initialization check
+- Resolved type checking warnings for Flask application structure
+
 ## [1.0.0] - 2025-08-04
 
 ### Added

@@ -4,7 +4,7 @@
 
 TopicSense is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, TopicSense integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
 
-**Version: 1.0.0 - Production Ready** - TopicSense has reached production stability with comprehensive documentation, versioning, and deployment support. The system is now ready for GitHub publication and production deployment.
+**Version: 1.0.1 - Production Ready** - TopicSense has reached production stability with comprehensive documentation, versioning, and deployment support. The system is now ready for GitHub publication and production deployment.
 
 **Live Audio Topic Detection** - TopicSense features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
@@ -12,8 +12,14 @@ The system implements a sophisticated architecture where topics emerge from weig
 
 ## Recent Changes (2025-08-04)
 
+### Version 1.0.1 Bug Fix Release (Latest)
+✓ Fixed Flask extensions compatibility for production deployment
+✓ Resolved LSP type checking errors in app.py
+✓ Implemented proper Flask extensions pattern for service storage
+✓ Updated all version references to 1.0.1
+
 ### Version 1.0.0 Release Preparation
-✓ Updated project metadata and versioning in pyproject.toml
+✓ Updated project metadata and versioning in pyproject.toml  
 ✓ Created comprehensive VERSION.md with release history
 ✓ Added CHANGELOG.md following Keep a Changelog format
 ✓ Implemented proper MIT LICENSE

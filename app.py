@@ -32,14 +32,19 @@ def create_app():
     # Initialize the app with the extension
     db.init_app(app)
     
+    # Initialize Flask extensions dictionary if not exists
+    if not hasattr(app, 'extensions'):
+        app.extensions = {}
+    
     with app.app_context():
         # Import models to ensure tables are created
         import models
         db.create_all()
         
-        # Initialize services
+        # Initialize services and store in app context
         from services.rag_engine_simple import SimpleRAGEngine
-        app.rag_engine = SimpleRAGEngine(db)
+        rag_engine = SimpleRAGEngine(db)
+        app.extensions['rag_engine'] = rag_engine
         logger.info("Simple RAG Engine initialized")
     
     # Register blueprints
@@ -53,7 +58,7 @@ def create_app():
     
     # Initialize audio processor
     with app.app_context():
-        init_audio_processor(app.rag_engine)
+        init_audio_processor(app.extensions['rag_engine'])
     
     # Main routes
     @app.route('/')

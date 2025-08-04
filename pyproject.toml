@@ -1,6 +1,6 @@
 [project]
 name = "topicsense"
-version = "1.0.0"
+version = "1.0.1"
 description = "TopicSense - An intelligent RAG classifier API for automatic task categorization with audio processing capabilities"
 authors = [
     {name = "AxTask Team"}
