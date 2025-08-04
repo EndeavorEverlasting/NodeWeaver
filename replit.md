@@ -1,18 +1,26 @@
-# TopicSense - RAG Classifier API
+# NodeWeaver - RAG Classifier API
 
 ## Overview
 
-TopicSense is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, TopicSense integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
+NodeWeaver is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, NodeWeaver integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
 
-**Version: 1.0.1 - Production Ready** - TopicSense has reached production stability with comprehensive documentation, versioning, and deployment support. The system is now ready for GitHub publication and production deployment.
+**Version: 1.0.1 - Production Ready** - NodeWeaver has reached production stability with comprehensive documentation, versioning, and deployment support. The system is now ready for GitHub publication and production deployment.
 
-**Live Audio Topic Detection** - TopicSense features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
+**Live Audio Topic Detection** - NodeWeaver features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
 The system implements a sophisticated architecture where topics emerge from weighted node convergence using clustering algorithms, allowing for dynamic discovery of new patterns and categories in text data. This approach enables the system to adapt and learn from usage patterns while maintaining high classification accuracy.
 
 ## Recent Changes (2025-08-04)
 
-### Version 1.0.1 Bug Fix Release (Latest)
+### Application Rebranding to NodeWeaver (Latest)
+✓ Updated project name from TopicSense to NodeWeaver across all files
+✓ Updated pyproject.toml package name and description
+✓ Updated all documentation files (README.md, API_DOCUMENTATION.md, etc.)
+✓ Updated HTML templates and web interface branding
+✓ Updated Docker configuration and database references
+✓ Updated configuration files and initialization scripts
+
+### Version 1.0.1 Bug Fix Release
 ✓ Fixed Flask extensions compatibility for production deployment
 ✓ Resolved LSP type checking errors in app.py
 ✓ Implemented proper Flask extensions pattern for service storage

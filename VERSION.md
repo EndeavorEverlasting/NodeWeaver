@@ -1,4 +1,4 @@
-# TopicSense Version History
+# NodeWeaver Version History
 
 ## Version 1.0.1 (2025-08-04) - Bug Fix Release
 

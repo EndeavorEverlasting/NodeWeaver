@@ -1,6 +1,6 @@
-# TopicSense Deployment Guide
+# NodeWeaver Deployment Guide
 
-This guide covers deployment options for TopicSense in various environments.
+This guide covers deployment options for NodeWeaver in various environments.
 
 ## Table of Contents
 
@@ -24,7 +24,7 @@ This guide covers deployment options for TopicSense in various environments.
 1. **Clone and setup**
    ```bash
    git clone <repository-url>
-   cd topicsense
+   cd nodeweaver
    python -m venv venv
    source venv/bin/activate  # Windows: venv\Scripts\activate
    pip install -r requirements.txt
@@ -209,7 +209,7 @@ docker-compose down
 3. **Setup application**
    ```bash
    git clone <repository-url>
-   cd topicsense
+   cd nodeweaver
    python3.11 -m venv venv
    source venv/bin/activate
    pip install -r requirements.txt
@@ -217,7 +217,7 @@ docker-compose down
 
 4. **Configure Nginx**
    ```nginx
-   # /etc/nginx/sites-available/topicsense
+   # /etc/nginx/sites-available/nodeweaver
    server {
        listen 80;
        server_name your-domain.com;
@@ -234,18 +234,18 @@ docker-compose down
 
 5. **Create systemd service**
    ```ini
-   # /etc/systemd/system/topicsense.service
+   # /etc/systemd/system/nodeweaver.service
    [Unit]
-   Description=TopicSense Web Application
+   Description=NodeWeaver Web Application
    After=network.target
    
    [Service]
    User=ubuntu
    Group=ubuntu
-   WorkingDirectory=/home/ubuntu/topicsense
-   Environment=PATH=/home/ubuntu/topicsense/venv/bin
-   EnvironmentFile=/home/ubuntu/topicsense/.env
-   ExecStart=/home/ubuntu/topicsense/venv/bin/gunicorn --bind 127.0.0.1:5000 main:app
+   WorkingDirectory=/home/ubuntu/nodeweaver
+   Environment=PATH=/home/ubuntu/nodeweaver/venv/bin
+   EnvironmentFile=/home/ubuntu/nodeweaver/.env
+   ExecStart=/home/ubuntu/nodeweaver/venv/bin/gunicorn --bind 127.0.0.1:5000 main:app
    Restart=always
    
    [Install]

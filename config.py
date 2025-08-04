@@ -2,7 +2,7 @@ import os
 
 class Config:
     # Database configuration
-    DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://rag_user:rag_pass@localhost:5432/topicsense')
+    DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://rag_user:rag_pass@localhost:5432/nodeweaver')
     
     # Flask configuration
     SECRET_KEY = os.environ.get('SESSION_SECRET', 'dev-secret-key-change-in-production')

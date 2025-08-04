@@ -1,6 +1,6 @@
-# Getting Started with TopicSense
+# Getting Started with NodeWeaver
 
-Welcome to TopicSense! This guide will help you get up and running quickly.
+Welcome to NodeWeaver! This guide will help you get up and running quickly.
 
 ## Quick Start
 
@@ -15,7 +15,7 @@ Welcome to TopicSense! This guide will help you get up and running quickly.
 ```bash
 # Clone the repository
 git clone <your-repository-url>
-cd topicsense
+cd nodeweaver
 
 # Create virtual environment
 python -m venv venv
@@ -31,8 +31,8 @@ pip install -r pyproject.toml  # Or use: pip install -e .
 ```bash
 # Start PostgreSQL with pgvector
 docker run -d \
-  --name topicsense-db \
-  -e POSTGRES_DB=topicsense \
+  --name nodeweaver-db \
+  -e POSTGRES_DB=nodeweaver \
   -e POSTGRES_USER=rag_user \
   -e POSTGRES_PASSWORD=rag_pass \
   -p 5432:5432 \
@@ -42,10 +42,10 @@ docker run -d \
 **Option B: Local PostgreSQL**
 ```sql
 -- Create database and user
-CREATE DATABASE topicsense;
+CREATE DATABASE nodeweaver;
 CREATE USER rag_user WITH PASSWORD 'rag_pass';
-GRANT ALL PRIVILEGES ON DATABASE topicsense TO rag_user;
-\c topicsense;
+GRANT ALL PRIVILEGES ON DATABASE nodeweaver TO rag_user;
+\c nodeweaver;
 CREATE EXTENSION vector;
 ```
 

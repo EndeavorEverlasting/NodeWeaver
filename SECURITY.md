@@ -11,7 +11,7 @@ Security updates are provided for the following versions:
 
 ## Reporting a Vulnerability
 
-We take the security of TopicSense seriously. If you discover a security vulnerability, please follow these steps:
+We take the security of NodeWeaver seriously. If you discover a security vulnerability, please follow these steps:
 
 ### Reporting Process
 

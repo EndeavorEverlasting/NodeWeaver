@@ -1,6 +1,6 @@
-# Contributing to TopicSense
+# Contributing to NodeWeaver
 
-Thank you for your interest in contributing to TopicSense! This document provides guidelines and information for contributors.
+Thank you for your interest in contributing to NodeWeaver! This document provides guidelines and information for contributors.
 
 ## Table of Contents
 
@@ -36,7 +36,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 1. **Clone the repository**
    ```bash
    git clone <repository-url>
-   cd topicsense
+   cd nodeweaver
    ```
 
 2. **Set up virtual environment**

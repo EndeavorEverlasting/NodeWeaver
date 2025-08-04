@@ -1,15 +1,15 @@
-# TopicSense - RAG Classifier API
+# NodeWeaver - RAG Classifier API
 
-![Version](https://img.shields.io/badge/Version-1.0.0-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![Version](https://img.shields.io/badge/Version-1.0.1-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 
-**TopicSense** is an intelligent, production-ready RAG (Retrieval-Augmented Generation) classifier API designed for automatic task categorization with real-time audio processing capabilities. It integrates seamlessly with AxTask and Google Sheets to eliminate manual task classification through advanced topic emergence detection and weighted node convergence algorithms.
+**NodeWeaver** is an intelligent, production-ready RAG (Retrieval-Augmented Generation) classifier API designed for automatic task categorization with real-time audio processing capabilities. It integrates seamlessly with AxTask and Google Sheets to eliminate manual task classification through advanced topic emergence detection and weighted node convergence algorithms.
 
 ## 🚀 Quick Start
 
 ```bash
 # Clone and setup
 git clone <your-repository-url>
-cd topicsense && python -m venv venv && source venv/bin/activate
+cd nodeweaver && python -m venv venv && source venv/bin/activate
 
 # Start with Docker (recommended)
 docker-compose up -d
@@ -48,5 +48,5 @@ pip install -e . && python main.py
 
 ## 🏗️ Architecture
 
-TopicSense uses a sophisticated multi-layer architecture:
+NodeWeaver uses a sophisticated multi-layer architecture:
 

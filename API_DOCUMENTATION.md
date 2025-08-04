@@ -1,12 +1,12 @@
-# TopicSense API Documentation
+# NodeWeaver API Documentation
 
-**Version:** 1.0.0  
+**Version:** 1.0.1  
 **Base URL:** `http://localhost:5000/api/v1`  
 **Content-Type:** `application/json`
 
 ## Overview
 
-TopicSense provides a comprehensive RESTful API for text classification, audio processing, and topic detection using advanced RAG (Retrieval-Augmented Generation) techniques.
+NodeWeaver provides a comprehensive RESTful API for text classification, audio processing, and topic detection using advanced RAG (Retrieval-Augmented Generation) techniques.
 
 ## Authentication
 

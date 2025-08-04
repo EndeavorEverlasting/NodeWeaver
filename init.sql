@@ -1,4 +1,4 @@
--- TopicSense Database Initialization Script
+-- NodeWeaver Database Initialization Script
 -- Creates the necessary tables, indexes, and extensions for the RAG classifier
 
 -- Enable required extensions

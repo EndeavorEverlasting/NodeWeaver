@@ -1,19 +1,19 @@
 /**
- * TopicSense Google Apps Script Integration
+ * NodeWeaver Google Apps Script Integration
  * Automatic task categorization for Google Sheets
  * 
  * Installation Instructions:
  * 1. Open Google Apps Script (script.google.com)
  * 2. Create a new project
  * 3. Replace the default code with this script
- * 4. Set TOPICSENSE_API_URL in the configuration section
+ * 4. Set NODEWEAVER_API_URL in the configuration section
  * 5. Save and authorize the necessary permissions
  * 6. Use the functions in your Google Sheets
  */
 
 // Configuration
 const CONFIG = {
-  TOPICSENSE_API_URL: 'https://your-topicsense-domain.com/api/v1',
+  NODEWEAVER_API_URL: 'https://your-nodeweaver-domain.com/api/v1',
   CACHE_DURATION: 3600, // 1 hour in seconds
   MAX_RETRIES: 3,
   TIMEOUT: 30000, // 30 seconds
@@ -21,7 +21,7 @@ const CONFIG = {
 };
 
 /**
- * Classify a single task/text using TopicSense API
+ * Classify a single task/text using NodeWeaver API
  * Usage in sheets: =CLASSIFY_TASK("Schedule dentist appointment")
  * 
  * @param {string} text - The text to classify
@@ -229,7 +229,7 @@ function GET_CATEGORIES() {
 }
 
 /**
- * Train TopicSense with manual categorizations from the sheet
+ * Train NodeWeaver with manual categorizations from the sheet
  * 
  * @param {string} sheetName - Name of the sheet containing training data
  * @param {string} textColumn - Column letter containing text
@@ -285,7 +285,7 @@ function TRAIN_FROM_SHEET(sheetName = null, textColumn = 'A', categoryColumn = '
     
     SpreadsheetApp.getUi().alert(
       'Training Complete',
-      `Successfully trained TopicSense with ${trainingData.length} examples.\n\n${response.message}`,
+      `Successfully trained NodeWeaver with ${trainingData.length} examples.\n\n${response.message}`,
       SpreadsheetApp.getUi().ButtonSet.OK
     );
 
@@ -300,11 +300,11 @@ function TRAIN_FROM_SHEET(sheetName = null, textColumn = 'A', categoryColumn = '
 }
 
 /**
- * Create menu items for easy access to TopicSense functions
+ * Create menu items for easy access to NodeWeaver functions
  */
 function onOpen() {
   const ui = SpreadsheetApp.getUi();
-  ui.createMenu('TopicSense')
+  ui.createMenu('NodeWeaver')
     .addItem('Auto-Categorize Current Sheet', 'autoCategorizeCurrentSheet')
     .addSeparator()
     .addItem('Train from Current Sheet', 'trainFromCurrentSheet')
@@ -367,18 +367,18 @@ Menu Options:
 • Show Categories: View available classification categories
 
 Setup:
-1. Make sure your TopicSense API is running
+1. Make sure your NodeWeaver API is running
 2. Update the API URL in script configuration
 3. Authorize the script permissions when first used
 
-For support, visit the TopicSense documentation.
+For support, visit the NodeWeaver documentation.
   `;
   
-  SpreadsheetApp.getUi().alert('TopicSense Help', helpText, SpreadsheetApp.getUi().ButtonSet.OK);
+  SpreadsheetApp.getUi().alert('NodeWeaver Help', helpText, SpreadsheetApp.getUi().ButtonSet.OK);
 }
 
 /**
- * Make HTTP request to TopicSense API with retry logic
+ * Make HTTP request to NodeWeaver API with retry logic
  * 
  * @param {string} endpoint - API endpoint
  * @param {string} method - HTTP method
@@ -386,7 +386,7 @@ For support, visit the TopicSense documentation.
  * @return {Object} API response
  */
 function makeApiRequest(endpoint, method = 'GET', payload = null) {
-  const url = CONFIG.TOPICSENSE_API_URL + endpoint;
+  const url = CONFIG.NODEWEAVER_API_URL + endpoint;
   
   const options = {
     method: method,

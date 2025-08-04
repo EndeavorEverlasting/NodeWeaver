@@ -26,9 +26,9 @@ class ClassificationResult:
     processing_time: float
     document_id: Optional[int] = None
 
-class TopicSenseAxTaskClient:
+class NodeWeaverAxTaskClient:
     """
-    AxTask client for TopicSense integration
+    AxTask client for NodeWeaver integration
     Provides automatic task categorization capabilities
     """
     
@@ -58,7 +58,7 @@ class TopicSenseAxTaskClient:
         # Verify connection on initialization
         self._verify_connection()
         
-        logger.info(f"TopicSense AxTask client initialized with URL: {self.api_url}")
+        logger.info(f"NodeWeaver AxTask client initialized with URL: {self.api_url}")
     
     def _verify_connection(self):
         """Verify API connection and availability"""
@@ -300,14 +300,14 @@ class AxTaskIntegration:
     High-level AxTask integration class with convenience methods
     """
     
-    def __init__(self, topicsense_client: TopicSenseAxTaskClient = None):
+    def __init__(self, nodeweaver_client: NodeWeaverAxTaskClient = None):
         """
         Initialize AxTask integration
         
         Args:
-            topicsense_client: TopicSense client instance (optional)
+            nodeweaver_client: NodeWeaver client instance (optional)
         """
-        self.client = topicsense_client or TopicSenseAxTaskClient()
+        self.client = nodeweaver_client or NodeWeaverAxTaskClient()
         self.category_mapping = self._load_category_mapping()
     
     def _load_category_mapping(self) -> Dict[str, str]:
@@ -317,7 +317,7 @@ class AxTaskIntegration:
         Returns:
             Category mapping dictionary
         """
-        # Default mapping from TopicSense categories to AxTask categories
+        # Default mapping from NodeWeaver categories to AxTask categories
         default_mapping = {
             'personal': 'Personal',
             'work': 'Work',
@@ -528,13 +528,13 @@ def create_axtask_client(api_url: str = None, api_key: str = None) -> AxTaskInte
     Factory function to create AxTask integration client
     
     Args:
-        api_url: TopicSense API URL
+        api_url: NodeWeaver API URL
         api_key: API key for authentication
         
     Returns:
         AxTaskIntegration instance
     """
-    client = TopicSenseAxTaskClient(api_url=api_url, api_key=api_key)
+    client = NodeWeaverAxTaskClient(api_url=api_url, api_key=api_key)
     return AxTaskIntegration(client)
 
 def quick_categorize(task_text: str, api_url: str = None) -> str:
@@ -543,12 +543,12 @@ def quick_categorize(task_text: str, api_url: str = None) -> str:
     
     Args:
         task_text: Text to categorize
-        api_url: TopicSense API URL (optional)
+        api_url: NodeWeaver API URL (optional)
         
     Returns:
         Predicted category
     """
-    client = TopicSenseAxTaskClient(api_url=api_url)
+    client = NodeWeaverAxTaskClient(api_url=api_url)
     result = client.classify_task(task_text)
     return result.predicted_category
 

@@ -1,9 +1,9 @@
 /**
- * TopicSense API Client
- * JavaScript client for interacting with the TopicSense RAG Classifier API
+ * NodeWeaver API Client
+ * JavaScript client for interacting with the NodeWeaver RAG Classifier API
  */
 
-class TopicSenseClient {
+class NodeWeaverClient {
     constructor(baseUrl = '/api/v1') {
         this.baseUrl = baseUrl;
         this.timeout = 30000; // 30 seconds
@@ -205,7 +205,8 @@ class TopicSenseClient {
 }
 
 // Utility functions for common UI interactions
-const TopicSenseUI = {
+const NodeWeaverUI = {
+    client: new NodeWeaverClient(),
     /**
      * Display classification result in a container
      */

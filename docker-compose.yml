@@ -4,9 +4,9 @@ services:
   # PostgreSQL database with pgvector extension
   database:
     image: pgvector/pgvector:pg15
-    container_name: topicsense-db
+    container_name: nodeweaver-db
     environment:
-      POSTGRES_DB: topicsense
+      POSTGRES_DB: nodeweaver
       POSTGRES_USER: rag_user
       POSTGRES_PASSWORD: rag_pass
     ports:
@@ -15,21 +15,21 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U rag_user -d topicsense"]
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d nodeweaver"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
-      - topicsense-network
+      - nodeweaver-network
 
-  # TopicSense application
+  # NodeWeaver application
   app:
     build:
       context: .
       target: production
-    container_name: topicsense-app
+    container_name: nodeweaver-app
     environment:
-      DATABASE_URL: postgresql://rag_user:rag_pass@database:5432/topicsense
+      DATABASE_URL: postgresql://rag_user:rag_pass@database:5432/nodeweaver
       SESSION_SECRET: your-production-secret-key-change-this
       LOG_LEVEL: INFO
       EMBEDDING_MODEL: all-MiniLM-L6-v2
@@ -53,13 +53,13 @@ services:
       retries: 3
       start_period: 40s
     networks:
-      - topicsense-network
+      - nodeweaver-network
     restart: unless-stopped
 
   # Redis for caching (optional)
   redis:
     image: redis:7-alpine
-    container_name: topicsense-redis
+    container_name: nodeweaver-redis
     ports:
       - "6379:6379"
     volumes:
@@ -70,13 +70,13 @@ services:
       timeout: 5s
       retries: 5
     networks:
-      - topicsense-network
+      - nodeweaver-network
     restart: unless-stopped
 
   # Nginx reverse proxy (optional for production)
   nginx:
     image: nginx:alpine
-    container_name: topicsense-nginx
+    container_name: nodeweaver-nginx
     ports:
       - "80:80"
       - "443:443"
@@ -86,7 +86,7 @@ services:
     depends_on:
       - app
     networks:
-      - topicsense-network
+      - nodeweaver-network
     restart: unless-stopped
     profiles:
       - production
@@ -98,5 +98,5 @@ volumes:
     driver: local
 
 networks:
-  topicsense-network:
+  nodeweaver-network:
     driver: bridge
