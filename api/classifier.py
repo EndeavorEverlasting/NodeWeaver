@@ -28,7 +28,7 @@ def classify_text():
         metadata = data.get('metadata', {})
         
         # Get RAG engine from app context
-        rag_engine = current_app.rag_engine
+        rag_engine = current_app.extensions['rag_engine']
         
         # Perform classification
         result = rag_engine.classify_text(text, metadata)
@@ -77,7 +77,7 @@ def classify_batch():
         if len(texts) > 100:  # Limit batch size
             return jsonify({'error': 'Batch size limited to 100 texts'}), 400
         
-        rag_engine = current_app.rag_engine
+        rag_engine = current_app.extensions['rag_engine']
         results = []
         
         for i, text in enumerate(texts):
@@ -125,7 +125,7 @@ def train_classifier():
         if not isinstance(training_data, list):
             return jsonify({'error': 'training_data must be an array'}), 400
         
-        rag_engine = current_app.rag_engine
+        rag_engine = current_app.extensions['rag_engine']
         
         # Process training data
         for item in training_data:

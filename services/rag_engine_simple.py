@@ -82,7 +82,7 @@ class SimpleRAGEngine:
             return 'work', 0.8
         
         # Personal keywords
-        personal_keywords = ['personal', 'family', 'home', 'myself', 'friend', 'hobby', 'vacation', 'weekend']
+        personal_keywords = ['personal', 'family', 'home', 'myself', 'friend', 'hobby', 'vacation', 'weekend', 'birthday', 'gift', 'celebration', 'party']
         if any(keyword in text_lower for keyword in personal_keywords):
             return 'personal', 0.8
         
@@ -117,7 +117,7 @@ class SimpleRAGEngine:
             return 'travel', 0.7
         
         # Shopping keywords
-        shopping_keywords = ['shopping', 'store', 'purchase', 'retail', 'order', 'delivery', 'product']
+        shopping_keywords = ['shopping', 'store', 'purchase', 'retail', 'order', 'delivery', 'product', 'find', 'get', 'buy', 'cake', 'food', 'groceries', 'market']
         if any(keyword in text_lower for keyword in shopping_keywords):
             return 'shopping', 0.7
         
@@ -156,4 +156,58 @@ class SimpleRAGEngine:
             
         except Exception as e:
             logger.error(f"Failed to create topic: {str(e)}")
+            raise
+    
+    def detect_emerging_topics(self) -> List[Dict]:
+        """Detect emerging topics from recent classifications (placeholder implementation)"""
+        try:
+            # For now, return existing topics as a placeholder
+            # In full implementation, this would use clustering on recent nodes
+            topics = Topic.query.order_by(Topic.total_weight.desc()).limit(5).all()
+            logger.info(f"Detected {len(topics)} emerging topics (placeholder)")
+            return [topic.to_dict() for topic in topics]
+        except Exception as e:
+            logger.error(f"Failed to detect emerging topics: {str(e)}")
+            return []
+    
+    def find_similar_topics(self, text: str, limit: int = 10, threshold: float = 0.5) -> List[Dict]:
+        """Find topics similar to input text (placeholder implementation)"""
+        try:
+            # For now, return a simple keyword-based match
+            # In full implementation, this would use semantic similarity
+            topics = Topic.query.limit(limit).all()
+            similar_topics = []
+            
+            text_lower = text.lower()
+            for topic in topics:
+                # Simple keyword matching
+                metadata = topic.meta_data or {}
+                keywords = metadata.get('keywords', [])
+                
+                matches = sum(1 for keyword in keywords if keyword.lower() in text_lower)
+                if matches > 0:
+                    score = min(0.9, matches * 0.2 + 0.3)  # Simple scoring
+                    similar_topics.append({
+                        **topic.to_dict(),
+                        'similarity_score': score
+                    })
+            
+            # Sort by similarity score
+            similar_topics.sort(key=lambda x: x['similarity_score'], reverse=True)
+            logger.info(f"Found {len(similar_topics)} similar topics for text: {text[:50]}...")
+            return similar_topics
+            
+        except Exception as e:
+            logger.error(f"Failed to find similar topics: {str(e)}")
+            return []
+    
+    def add_training_data(self, text: str, category: str, metadata: Dict = None):
+        """Add training data (placeholder implementation)"""
+        try:
+            # For now, just classify and store
+            # In full implementation, this would improve the model
+            self.classify_text(text, metadata)
+            logger.info(f"Added training data: {category} - {text[:50]}...")
+        except Exception as e:
+            logger.error(f"Failed to add training data: {str(e)}")
             raise

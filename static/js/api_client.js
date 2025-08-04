@@ -400,10 +400,10 @@ const NodeWeaverUI = {
 };
 
 // Create global instance
-window.topicSenseClient = new TopicSenseClient();
-window.TopicSenseUI = TopicSenseUI;
+window.nodeWeaverClient = new NodeWeaverClient();
+window.NodeWeaverUI = NodeWeaverUI;
 
 // Export for module systems
 if (typeof module !== 'undefined' && module.exports) {
-    module.exports = { TopicSenseClient, TopicSenseUI };
+    module.exports = { NodeWeaverClient, NodeWeaverUI };
 }

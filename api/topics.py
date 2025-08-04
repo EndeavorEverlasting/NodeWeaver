@@ -73,7 +73,7 @@ def get_topic_details(topic_id):
 def detect_topics():
     """Trigger topic detection algorithm"""
     try:
-        rag_engine = current_app.rag_engine
+        rag_engine = current_app.extensions['rag_engine']
         
         # Run topic detection
         emerging_topics = rag_engine.detect_emerging_topics()
@@ -100,7 +100,7 @@ def find_similar_topics():
         limit = min(data.get('limit', 10), 50)  # Max 50 results
         threshold = data.get('threshold', 0.5)
         
-        rag_engine = current_app.rag_engine
+        rag_engine = current_app.extensions['rag_engine']
         
         # Find similar topics
         similar_topics = rag_engine.find_similar_topics(text, limit=limit, threshold=threshold)
