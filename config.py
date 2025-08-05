@@ -18,13 +18,13 @@ class Config:
     
     # Classification categories
     DEFAULT_CATEGORIES = [
-        'personal', 'work', 'academic', 'political', 'health', 'finance',
+        'personal', 'work', 'academic', 'political', 'legal', 'health', 'finance',
         'entertainment', 'travel', 'shopping', 'technology', 'other'
     ]
     
     # API configuration
     API_VERSION = 'v1'
-    APP_VERSION = '1.0.2'
+    APP_VERSION = '1.0.3'
     MAX_INPUT_LENGTH = int(os.environ.get('MAX_INPUT_LENGTH', '10000'))
     
     # Logging configuration

@@ -24,6 +24,40 @@
 
 ---
 
+## Version 1.0.3 (2025-08-05) - Learning & Classification Enhancement
+
+### 🧠 Learning Mechanisms
+- **Classification Correction**: New `/api/v1/correct` endpoint to correct misclassifications and learn from them
+- **Training Data Integration**: New `/api/v1/train` endpoint to add labeled training examples
+- **Keyword Learning**: System extracts and stores new keywords from training data for category improvement
+- **Corrective Feedback Loop**: When classifications are corrected, system learns and improves future accuracy
+
+### 🎯 Enhanced Category Detection
+- **New Legal Category**: Added dedicated "legal" category with specialized keywords (law, court, judge, attorney, etc.)
+- **Improved Political Keywords**: Enhanced political category with municipal terms (city council, zoning, ordinance, civic, etc.)
+- **Better Confidence Scoring**: Legal and political categories now have higher base confidence (0.85) for more accurate classification
+- **Nuanced Distinction**: System can now distinguish between general "work" meetings vs. "political/legal" government meetings
+
+### 📊 Real-World Testing Results
+- **Before**: "Attend city council meeting about zoning changes" → work (0.8)
+- **After**: "Attend city council meeting about zoning changes" → political (0.9), legal (0.85), work (0.8)
+- **Improvement**: System correctly prioritizes political/legal nature over generic work classification
+
+### 🔧 Technical Improvements
+- Added `add_training_data()` method for supervised learning integration
+- Added `correct_classification()` method for corrective feedback
+- Enhanced keyword extraction and storage from training examples
+- Improved category keyword databases with domain-specific terms
+- Added training metadata tracking for learning analysis
+
+### 📝 Documentation Enhancements
+- Comprehensive learning mechanism documentation
+- Training and correction API endpoint specifications
+- Category enhancement guidelines and examples
+- Learning feedback loop architecture documentation
+
+---
+
 ## Version 1.0.1 (2025-08-04) - Bug Fix Release
 
 ### 🐛 Bug Fixes

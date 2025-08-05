@@ -104,6 +104,80 @@ def classify_batch():
         logger.error(f"Batch classification error: {str(e)}")
         return jsonify({'error': 'Batch classification failed', 'details': str(e)}), 500
 
+@classifier_bp.route('/train', methods=['POST'])
+def add_training_data():
+    """Add training data to improve classification accuracy"""
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data or 'category' not in data:
+            return jsonify({'error': 'Missing text or category in request'}), 400
+        
+        text = data['text'].strip()
+        category = data['category'].strip().lower()
+        metadata = data.get('metadata', {})
+        
+        if not text:
+            return jsonify({'error': 'Empty text provided'}), 400
+        
+        if not category:
+            return jsonify({'error': 'Empty category provided'}), 400
+        
+        rag_engine = current_app.extensions['rag_engine']
+        doc_id = rag_engine.add_training_data(text, category, metadata)
+        
+        logger.info(f"Training data added: {category} - {text[:50]}...")
+        
+        return jsonify({
+            'success': True,
+            'document_id': doc_id,
+            'text': text,
+            'category': category,
+            'message': f'Training data added for category: {category}'
+        })
+        
+    except Exception as e:
+        logger.error(f"Training data error: {str(e)}")
+        return jsonify({'error': 'Failed to add training data', 'details': str(e)}), 500
+
+@classifier_bp.route('/correct', methods=['POST'])
+def correct_classification():
+    """Correct a misclassification and learn from it"""
+    try:
+        data = request.get_json()
+        if not data or 'text' not in data or 'correct_category' not in data:
+            return jsonify({'error': 'Missing text or correct_category in request'}), 400
+        
+        text = data['text'].strip()
+        correct_category = data['correct_category'].strip().lower()
+        metadata = data.get('metadata', {})
+        
+        if not text:
+            return jsonify({'error': 'Empty text provided'}), 400
+        
+        if not correct_category:
+            return jsonify({'error': 'Empty correct_category provided'}), 400
+        
+        rag_engine = current_app.extensions['rag_engine']
+        success = rag_engine.correct_classification(text, correct_category, metadata)
+        
+        if success:
+            logger.info(f"Classification corrected: '{text[:50]}...' -> {correct_category}")
+            return jsonify({
+                'success': True,
+                'text': text,
+                'correct_category': correct_category,
+                'message': f'Classification corrected to: {correct_category}'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'No original classification found for this text'
+            }), 404
+        
+    except Exception as e:
+        logger.error(f"Classification correction error: {str(e)}")
+        return jsonify({'error': 'Failed to correct classification', 'details': str(e)}), 500
+
 @classifier_bp.route('/categories', methods=['GET'])
 def get_categories():
     """Get available classification categories"""
