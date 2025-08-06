@@ -193,3 +193,36 @@ data/models/
 
 # uv lock file
 uv.lock
+
+# --- NodeWeaver additions ---
+
+# Local scratch / per-user data
+.local/
+attached_assets/
+
+# Flask / WSGI runtime bits
+*.pid
+*.sock
+
+# Secrets & certs (never commit)
+*.pem
+*.key
+*.crt
+*.pfx
+
+# Env variants
+.env.local
+.env.development
+.env.production
+.env.docker
+
+# Replit junk but keep the .replit config
+.repl_history
+
+# Docker local volumes (if you bind-mount a data dir)
+docker-data/
+.docker-data/
+
+# Compiled/static bundles (if you build front-end assets)
+static/build/
+static/dist/
