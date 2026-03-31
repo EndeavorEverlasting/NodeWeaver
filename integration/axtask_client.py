@@ -1,7 +1,4 @@
-"""
-TopicSense AxTask Integration Client
-Seamless integration between AxTask and TopicSense for automatic task categorization
-"""
+"""NodeWeaver AxTask integration client."""
 
 import requests
 import logging
@@ -11,6 +8,12 @@ import os
 from dataclasses import dataclass
 from functools import wraps
 import json
+from utils.classification_profiles import (
+    DEFAULT_AXTASK_CATEGORY_MAPPING,
+    build_axtask_metadata,
+    extract_task_text,
+    normalize_axtask_category,
+)
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -37,19 +40,19 @@ class NodeWeaverAxTaskClient:
         Initialize the AxTask client
         
         Args:
-            api_url: TopicSense API base URL
+            api_url: NodeWeaver API base URL
             api_key: API key for authentication (if required)
             timeout: Request timeout in seconds
         """
-        self.api_url = api_url or os.getenv('TOPICSENSE_API_URL', 'http://localhost:5000/api/v1')
-        self.api_key = api_key or os.getenv('TOPICSENSE_API_KEY')
+        self.api_url = api_url or os.getenv('NODEWEAVER_API_URL') or os.getenv('TOPICSENSE_API_URL', 'http://localhost:5000/api/v1')
+        self.api_key = api_key or os.getenv('NODEWEAVER_API_KEY') or os.getenv('TOPICSENSE_API_KEY')
         self.timeout = timeout
         self.session = requests.Session()
         
         # Set default headers
         self.session.headers.update({
             'Content-Type': 'application/json',
-            'User-Agent': 'TopicSense-AxTask-Client/1.0'
+            'User-Agent': 'NodeWeaver-AxTask-Client/1.1'
         })
         
         if self.api_key:
@@ -63,11 +66,11 @@ class NodeWeaverAxTaskClient:
     def _verify_connection(self):
         """Verify API connection and availability"""
         try:
-            response = self._make_request('/categories', method='GET')
-            logger.info("Successfully connected to TopicSense API")
-            logger.info(f"Available categories: {', '.join(response.get('categories', []))}")
+            categories = self.get_categories()
+            logger.info("Successfully connected to NodeWeaver API")
+            logger.info(f"Available AxTask classifications: {', '.join(categories)}")
         except Exception as e:
-            logger.warning(f"Failed to verify TopicSense connection: {e}")
+            logger.warning(f"Failed to verify NodeWeaver connection: {e}")
     
     def _make_request(self, endpoint: str, method: str = 'GET', data: Dict = None, retries: int = 3) -> Dict:
         """
@@ -110,7 +113,7 @@ class NodeWeaverAxTaskClient:
     
     def classify_task(self, task_text: str, metadata: Dict = None) -> ClassificationResult:
         """
-        Classify a single task using TopicSense
+        Classify a single task using NodeWeaver
         
         Args:
             task_text: The task text to classify
@@ -126,9 +129,11 @@ class NodeWeaverAxTaskClient:
         if not task_text or not task_text.strip():
             raise ValueError("Task text cannot be empty")
         
+        request_metadata = build_axtask_metadata(metadata)
+
         request_data = {
             'text': task_text.strip(),
-            'metadata': metadata or {'source': 'axtask'}
+            'metadata': request_metadata
         }
         
         logger.debug(f"Classifying task: {task_text[:50]}...")
@@ -136,7 +141,7 @@ class NodeWeaverAxTaskClient:
         response = self._make_request('/classify', method='POST', data=request_data)
         
         result = ClassificationResult(
-            predicted_category=response.get('predicted_category', 'other'),
+            predicted_category=response.get('predicted_category', 'General'),
             confidence_score=response.get('confidence_score', 0.0),
             similar_topics=response.get('similar_topics', []),
             similar_nodes=response.get('similar_nodes', []),
@@ -176,7 +181,18 @@ class NodeWeaverAxTaskClient:
         
         logger.info(f"Classifying {len(valid_tasks)} tasks in batch...")
         
-        response = self._make_request('/classify/batch', method='POST', data={'texts': valid_tasks})
+        response = self._make_request(
+            '/classify/batch',
+            method='POST',
+            data={
+                'texts': valid_tasks,
+                'metadata': {
+                    'source': 'axtask',
+                    'target_system': 'axtask',
+                    'classification_profile': 'axtask',
+                }
+            }
+        )
         
         results = []
         for result_data in response.get('results', []):
@@ -191,7 +207,7 @@ class NodeWeaverAxTaskClient:
                 )
             else:
                 result = ClassificationResult(
-                    predicted_category=result_data.get('predicted_category', 'other'),
+                    predicted_category=result_data.get('predicted_category', 'General'),
                     confidence_score=result_data.get('confidence_score', 0.0),
                     similar_topics=result_data.get('similar_topics', []),
                     similar_nodes=result_data.get('similar_nodes', []),
@@ -211,12 +227,12 @@ class NodeWeaverAxTaskClient:
         Returns:
             List of available categories
         """
-        response = self._make_request('/categories')
-        return response.get('categories', ['other'])
+        response = self._make_request('/categories?profile=axtask')
+        return response.get('categories', ['General'])
     
     def train_with_tasks(self, training_data: List[Dict[str, str]]) -> Dict[str, Any]:
         """
-        Train TopicSense with AxTask data
+        Train NodeWeaver with AxTask data
         
         Args:
             training_data: List of dicts with 'text' and 'category' fields
@@ -240,8 +256,10 @@ class NodeWeaverAxTaskClient:
             if 'metadata' not in item:
                 item['metadata'] = {}
             item['metadata']['source'] = 'axtask'
+            item['metadata']['target_system'] = 'axtask'
+            item['metadata']['classification_profile'] = 'axtask'
         
-        logger.info(f"Training TopicSense with {len(training_data)} AxTask examples...")
+        logger.info(f"Training NodeWeaver with {len(training_data)} AxTask examples...")
         
         response = self._make_request('/train', method='POST', data={'training_data': training_data})
         
@@ -317,20 +335,7 @@ class AxTaskIntegration:
         Returns:
             Category mapping dictionary
         """
-        # Default mapping from NodeWeaver categories to AxTask categories
-        default_mapping = {
-            'personal': 'Personal',
-            'work': 'Work',
-            'academic': 'Study',
-            'health': 'Health',
-            'finance': 'Finance',
-            'shopping': 'Shopping',
-            'travel': 'Travel',
-            'entertainment': 'Entertainment',
-            'technology': 'Tech',
-            'political': 'Politics',
-            'other': 'Miscellaneous'
-        }
+        default_mapping = dict(DEFAULT_AXTASK_CATEGORY_MAPPING)
         
         # Try to load custom mapping from environment or config file
         mapping_file = os.getenv('AXTASK_CATEGORY_MAPPING_FILE')
@@ -338,12 +343,35 @@ class AxTaskIntegration:
             try:
                 with open(mapping_file, 'r') as f:
                     custom_mapping = json.load(f)
-                    default_mapping.update(custom_mapping)
+                    default_mapping.update({key.lower(): value for key, value in custom_mapping.items()})
                     logger.info(f"Loaded custom category mapping from {mapping_file}")
             except Exception as e:
                 logger.warning(f"Failed to load custom category mapping: {e}")
         
-        return default_mapping
+        return {key.lower(): value for key, value in default_mapping.items()}
+
+    def _map_to_axtask_classification(self, predicted_category: str) -> str:
+        """Map a raw NodeWeaver category into AxTask's canonical classification set."""
+        return self.category_mapping.get(
+            str(predicted_category or '').lower(),
+            normalize_axtask_category(predicted_category),
+        )
+
+    def _apply_classification_result(self, task: Dict[str, Any], result: ClassificationResult) -> Dict[str, Any]:
+        """Persist AxTask-compatible classification fields onto a task object."""
+        axtask_classification = self._map_to_axtask_classification(result.predicted_category)
+        task['classification'] = axtask_classification
+        task['category'] = axtask_classification
+        task['classification_confidence'] = result.confidence_score
+        task['auto_categorized'] = True
+        task['classification_metadata'] = {
+            'nodeweaver_category': result.predicted_category,
+            'confidence': result.confidence_score,
+            'similar_topics_count': len(result.similar_topics),
+            'processing_time': result.processing_time,
+            'profile': 'axtask',
+        }
+        return task
     
     def categorize_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -367,24 +395,8 @@ class AxTaskIntegration:
                 metadata={'axtask_id': task.get('id'), 'source': 'axtask'}
             )
             
-            # Map TopicSense category to AxTask category
-            axtask_category = self.category_mapping.get(
-                result.predicted_category, 
-                result.predicted_category.title()
-            )
-            
-            # Update task with classification results
-            task['category'] = axtask_category
-            task['classification_confidence'] = result.confidence_score
-            task['auto_categorized'] = True
-            task['classification_metadata'] = {
-                'topicsense_category': result.predicted_category,
-                'confidence': result.confidence_score,
-                'similar_topics_count': len(result.similar_topics),
-                'processing_time': result.processing_time
-            }
-            
-            logger.info(f"Task categorized as '{axtask_category}' (confidence: {result.confidence_score:.2f})")
+            self._apply_classification_result(task, result)
+            logger.info(f"Task categorized as '{task['classification']}' (confidence: {result.confidence_score:.2f})")
             
         except Exception as e:
             logger.error(f"Failed to categorize task: {e}")
@@ -402,19 +414,7 @@ class AxTaskIntegration:
         Returns:
             Extracted text for classification
         """
-        # Combine title, description, and notes for better classification
-        text_parts = []
-        
-        if task.get('title'):
-            text_parts.append(task['title'])
-        
-        if task.get('description'):
-            text_parts.append(task['description'])
-        
-        if task.get('notes'):
-            text_parts.append(task['notes'])
-        
-        return ' | '.join(text_parts).strip()
+        return extract_task_text(task)
     
     def auto_categorize_project(self, project_tasks: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """
@@ -449,24 +449,11 @@ class AxTaskIntegration:
             # Update tasks with results
             for task, result in zip(tasks_with_text, results):
                 if result.predicted_category != 'error':
-                    axtask_category = self.category_mapping.get(
-                        result.predicted_category,
-                        result.predicted_category.title()
-                    )
-                    
-                    task['category'] = axtask_category
-                    task['classification_confidence'] = result.confidence_score
-                    task['auto_categorized'] = True
-                    task['classification_metadata'] = {
-                        'topicsense_category': result.predicted_category,
-                        'confidence': result.confidence_score,
-                        'similar_topics_count': len(result.similar_topics),
-                        'processing_time': result.processing_time
-                    }
+                    self._apply_classification_result(task, result)
                 else:
                     task['classification_error'] = 'Batch classification failed'
             
-            categorized_count = sum(1 for task in tasks_with_text if 'category' in task)
+            categorized_count = sum(1 for task in tasks_with_text if task.get('classification'))
             logger.info(f"Successfully categorized {categorized_count}/{len(tasks_with_text)} tasks")
             
         except Exception as e:
@@ -492,33 +479,26 @@ class AxTaskIntegration:
         
         for task in historical_tasks:
             text = self._extract_task_text(task)
-            category = task.get('category')
+            category = task.get('classification') or task.get('category')
             
             if text and category:
-                # Map AxTask category back to TopicSense category
-                topicsense_category = None
-                for ts_cat, ax_cat in self.category_mapping.items():
-                    if ax_cat.lower() == category.lower():
-                        topicsense_category = ts_cat
-                        break
-                
-                if not topicsense_category:
-                    topicsense_category = category.lower()
-                
+                nodeweaver_category = normalize_axtask_category(category).lower()
                 training_data.append({
                     'text': text,
-                    'category': topicsense_category,
+                    'category': nodeweaver_category,
                     'metadata': {
                         'source': 'axtask_historical',
+                        'target_system': 'axtask',
+                        'classification_profile': 'axtask',
                         'axtask_id': task.get('id'),
-                        'original_category': category
+                        'original_classification': normalize_axtask_category(category)
                     }
                 })
         
         if not training_data:
             raise ValueError("No valid training data found in historical tasks")
         
-        logger.info(f"Training TopicSense with {len(training_data)} historical AxTask examples...")
+        logger.info(f"Training NodeWeaver with {len(training_data)} historical AxTask examples...")
         
         return self.client.train_with_tasks(training_data)
 
@@ -550,7 +530,7 @@ def quick_categorize(task_text: str, api_url: str = None) -> str:
     """
     client = NodeWeaverAxTaskClient(api_url=api_url)
     result = client.classify_task(task_text)
-    return result.predicted_category
+    return normalize_axtask_category(result.predicted_category)
 
 # Example usage and testing
 if __name__ == "__main__":
@@ -562,25 +542,24 @@ if __name__ == "__main__":
         # Test single task categorization
         test_task = {
             'id': 'test-123',
-            'title': 'Schedule dentist appointment',
-            'description': 'Call Dr. Smith to book annual checkup',
+            'activity': 'Schedule dentist appointment',
             'notes': 'Prefer morning appointments'
         }
         
         categorized_task = integration.categorize_task(test_task)
-        print(f"Task categorized as: {categorized_task.get('category')}")
+        print(f"Task categorized as: {categorized_task.get('classification')}")
         print(f"Confidence: {categorized_task.get('classification_confidence', 0):.2f}")
         
         # Test batch categorization
         test_tasks = [
-            {'title': 'Buy groceries', 'description': 'Milk, bread, eggs'},
-            {'title': 'Prepare presentation', 'description': 'For Monday board meeting'},
-            {'title': 'Study chemistry', 'description': 'Chapter 5 for midterm exam'}
+            {'activity': 'Buy groceries', 'notes': 'Milk, bread, eggs'},
+            {'activity': 'Prepare presentation', 'notes': 'For Monday board meeting'},
+            {'activity': 'Study chemistry', 'notes': 'Chapter 5 for midterm exam'}
         ]
         
         categorized_tasks = integration.auto_categorize_project(test_tasks)
         for task in categorized_tasks:
-            print(f"'{task['title']}' -> {task.get('category', 'Uncategorized')}")
+            print(f"'{task['activity']}' -> {task.get('classification', 'Uncategorized')}")
         
     except Exception as e:
         logger.error(f"Example execution failed: {e}")

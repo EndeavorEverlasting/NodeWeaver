@@ -1,20 +1,18 @@
-"""Input validation utilities for TopicSense API"""
+"""Input validation utilities for NodeWeaver API"""
 from config import Config
+from utils.classification_profiles import extract_task_text
 
 def validate_classification_input(data):
     """Validate classification request input"""
     if not isinstance(data, dict):
         return "Input must be a JSON object"
     
-    if 'text' not in data:
-        return "Missing required field: text"
-    
-    text = data['text']
-    if not isinstance(text, str):
+    if 'text' in data and not isinstance(data['text'], str):
         return "Field 'text' must be a string"
-    
-    if not text.strip():
-        return "Field 'text' cannot be empty"
+
+    text = extract_task_text(data)
+    if not text:
+        return "Missing required text input. Provide 'text' or AxTask fields like 'activity'/'notes'."
     
     if len(text) > Config.MAX_INPUT_LENGTH:
         return f"Text too long. Maximum length is {Config.MAX_INPUT_LENGTH} characters"
@@ -49,8 +47,10 @@ def validate_topic_input(data):
         category = data['category']
         if not isinstance(category, str):
             return "Field 'category' must be a string"
-        
-        if category and category not in Config.DEFAULT_CATEGORIES:
-            return f"Invalid category. Must be one of: {', '.join(Config.DEFAULT_CATEGORIES)}"
+
+        valid_categories = {value.lower() for value in (Config.DEFAULT_CATEGORIES + Config.AXTASK_CATEGORIES)}
+        if category and category.lower() not in valid_categories:
+            allowed = ', '.join(Config.DEFAULT_CATEGORIES + Config.AXTASK_CATEGORIES)
+            return f"Invalid category. Must be one of: {allowed}"
     
     return None  # No validation errors

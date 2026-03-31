@@ -66,7 +66,7 @@ class NodeWeaverClient {
     /**
      * Classify multiple texts in batch
      */
-    async classifyBatch(texts) {
+    async classifyBatch(texts, metadata = {}) {
         if (!Array.isArray(texts) || texts.length === 0) {
             throw new Error('Texts must be a non-empty array');
         }
@@ -86,15 +86,16 @@ class NodeWeaverClient {
 
         return await this.request('/classify/batch', {
             method: 'POST',
-            body: JSON.stringify({ texts: validTexts })
+            body: JSON.stringify({ texts: validTexts, metadata })
         });
     }
 
     /**
      * Get available categories
      */
-    async getCategories() {
-        return await this.request('/categories');
+    async getCategories(profile = null) {
+        const query = profile ? `?profile=${encodeURIComponent(profile)}` : '';
+        return await this.request(`/categories${query}`);
     }
 
     /**

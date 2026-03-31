@@ -90,7 +90,7 @@ def create_app():
                     return response
 
     # Configure the database
-    database_url = os.environ.get("DATABASE_URL", "postgresql://rag_user:rag_pass@localhost:5432/topicsense")
+    database_url = os.environ.get("DATABASE_URL", "postgresql://rag_user:rag_pass@localhost:5432/nodeweaver")
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,

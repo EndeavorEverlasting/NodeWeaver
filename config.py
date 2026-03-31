@@ -22,6 +22,9 @@ class Config:
         'personal', 'work', 'academic', 'political', 'legal', 'health', 'finance',
         'entertainment', 'travel', 'shopping', 'technology', 'other'
     ]
+    AXTASK_CATEGORIES = [
+        'Development', 'Meeting', 'Research', 'Maintenance', 'Administrative', 'General'
+    ]
 
     # API configuration
     API_VERSION = 'v1'
@@ -44,3 +47,11 @@ class Config:
     NODEWEAVER_API_KEY = os.environ.get('NODEWEAVER_API_KEY')
     NODEWEAVER_ALLOWED_ORIGINS = os.environ.get('NODEWEAVER_ALLOWED_ORIGINS', '*')
     AXTASK_WEBHOOK_URL = os.environ.get('AXTASK_WEBHOOK_URL')
+
+    @classmethod
+    def get_categories(cls, profile: str = None):
+        """Return categories for the requested classification profile."""
+        profile_name = (profile or '').strip().lower()
+        if profile_name == 'axtask':
+            return cls.AXTASK_CATEGORIES
+        return cls.DEFAULT_CATEGORIES
