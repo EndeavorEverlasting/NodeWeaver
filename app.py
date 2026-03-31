@@ -21,7 +21,7 @@ def create_app():
     app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
     
     # Configure the database
-    database_url = os.environ.get("DATABASE_URL", "postgresql://rag_user:rag_pass@localhost:5432/topicsense")
+    database_url = os.environ.get("DATABASE_URL", "postgresql://rag_user:rag_pass@localhost:5432/nodeweaver")
     app.config["SQLALCHEMY_DATABASE_URI"] = database_url
     app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
         "pool_recycle": 300,
@@ -105,7 +105,7 @@ def create_app():
         return {
             'version': Config.APP_VERSION,
             'api_version': Config.API_VERSION,
-            'name': 'TopicSense',
+            'name': 'NodeWeaver',
             'description': 'RAG Classifier API for automatic task categorization with audio processing capabilities'
         }
     

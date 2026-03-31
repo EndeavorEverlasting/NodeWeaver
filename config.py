@@ -21,6 +21,9 @@ class Config:
         'personal', 'work', 'academic', 'political', 'legal', 'health', 'finance',
         'entertainment', 'travel', 'shopping', 'technology', 'other'
     ]
+    AXTASK_CATEGORIES = [
+        'Development', 'Meeting', 'Research', 'Maintenance', 'Administrative', 'General'
+    ]
     
     # API configuration
     API_VERSION = 'v1'
@@ -29,3 +32,11 @@ class Config:
     
     # Logging configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
+
+    @classmethod
+    def get_categories(cls, profile: str = None):
+        """Return categories for the requested classification profile."""
+        profile_name = (profile or '').strip().lower()
+        if profile_name == 'axtask':
+            return cls.AXTASK_CATEGORIES
+        return cls.DEFAULT_CATEGORIES

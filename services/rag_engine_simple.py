@@ -6,6 +6,7 @@ from datetime import datetime
 from models import Node, Topic, Document, ClassificationLog
 from services.embeddings_simple import SimpleEmbeddingService
 from config import Config
+from utils.classification_profiles import predict_axtask_categories, resolve_classification_profile
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,8 @@ class SimpleRAGEngine:
             text_embedding = self.embedding_service.encode(text)
             
             # Multi-label classification - get all matching categories
-            classification_results = self._predict_categories_multi(text)
+            metadata = metadata or {}
+            classification_results = self._predict_categories_multi(text, metadata)
             
             # Get primary category (highest confidence)
             primary_category = classification_results[0] if classification_results else {'category': 'other', 'confidence': 0.3}
@@ -50,7 +52,7 @@ class SimpleRAGEngine:
                 predicted_category=primary_category['category'],
                 confidence_score=primary_category['confidence'],
                 topic_ids=topic_ids,
-                meta_data=metadata or {}
+                meta_data=metadata
             )
             
             self.db.session.add(doc)
@@ -65,7 +67,7 @@ class SimpleRAGEngine:
                 similar_nodes=[],
                 processing_time=0.1,
                 meta_data={
-                    **(metadata or {}),
+                    **metadata,
                     'all_categories': classification_results,
                     'topic_associations': topic_ids
                 }
@@ -87,8 +89,11 @@ class SimpleRAGEngine:
             logger.error(f"Text classification failed: {str(e)}")
             raise
     
-    def _predict_categories_multi(self, text: str) -> List[Dict[str, Any]]:
+    def _predict_categories_multi(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Multi-label classification - return all matching categories with confidence scores"""
+        if resolve_classification_profile(metadata) == 'axtask':
+            return predict_axtask_categories(text)
+
         text_lower = text.lower().strip()
         categories = []
         

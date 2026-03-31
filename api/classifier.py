@@ -1,9 +1,12 @@
 from flask import Blueprint, request, jsonify, current_app
 import time
 import logging
+from copy import deepcopy
 from utils.validators import validate_classification_input
 from models import ClassificationLog
 from app import db
+from config import Config
+from utils.classification_profiles import build_axtask_metadata, extract_task_text, is_axtask_payload
 
 logger = logging.getLogger(__name__)
 
@@ -24,8 +27,10 @@ def classify_text():
         if validation_error:
             return jsonify({'error': validation_error}), 400
         
-        text = data['text']
-        metadata = data.get('metadata', {})
+        text = extract_task_text(data)
+        metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
+        if is_axtask_payload(data):
+            metadata = build_axtask_metadata(metadata)
         
         # Get RAG engine from app context
         rag_engine = current_app.extensions['rag_engine']
@@ -70,9 +75,29 @@ def classify_batch():
         if not data or 'texts' not in data:
             return jsonify({'error': 'No texts array provided'}), 400
         
-        texts = data['texts']
+        texts = data.get('texts')
+        shared_metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
+        metadata_list = data.get('metadata_list')
+
+        if texts is None and isinstance(data.get('tasks'), list):
+            texts = []
+            metadata_list = []
+            for task in data['tasks']:
+                task_text = extract_task_text(task)
+                if task_text:
+                    texts.append(task_text)
+                    task_metadata = deepcopy(task.get('metadata', {})) if isinstance(task.get('metadata'), dict) else {}
+                    if is_axtask_payload(task):
+                        task_metadata = build_axtask_metadata(task_metadata)
+                    metadata_list.append(task_metadata)
+
         if not isinstance(texts, list) or len(texts) == 0:
-            return jsonify({'error': 'texts must be a non-empty array'}), 400
+            return jsonify({'error': 'texts or tasks must be a non-empty array'}), 400
+
+        if isinstance(shared_metadata, dict) and any(key in shared_metadata for key in ('classification_profile', 'target_system', 'source')):
+            shared_metadata = dict(shared_metadata)
+        elif isinstance(data, dict) and 'tasks' in data:
+            shared_metadata = build_axtask_metadata(shared_metadata)
         
         if len(texts) > 100:  # Limit batch size
             return jsonify({'error': 'Batch size limited to 100 texts'}), 400
@@ -86,7 +111,12 @@ def classify_batch():
                 continue
             
             try:
-                result = rag_engine.classify_text(text)
+                item_metadata = {}
+                if isinstance(metadata_list, list) and i < len(metadata_list) and isinstance(metadata_list[i], dict):
+                    item_metadata = metadata_list[i]
+                elif isinstance(shared_metadata, dict):
+                    item_metadata = shared_metadata
+                result = rag_engine.classify_text(text, item_metadata)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Error classifying text at index {i}: {str(e)}")
@@ -103,41 +133,6 @@ def classify_batch():
     except Exception as e:
         logger.error(f"Batch classification error: {str(e)}")
         return jsonify({'error': 'Batch classification failed', 'details': str(e)}), 500
-
-@classifier_bp.route('/train', methods=['POST'])
-def add_training_data():
-    """Add training data to improve classification accuracy"""
-    try:
-        data = request.get_json()
-        if not data or 'text' not in data or 'category' not in data:
-            return jsonify({'error': 'Missing text or category in request'}), 400
-        
-        text = data['text'].strip()
-        category = data['category'].strip().lower()
-        metadata = data.get('metadata', {})
-        
-        if not text:
-            return jsonify({'error': 'Empty text provided'}), 400
-        
-        if not category:
-            return jsonify({'error': 'Empty category provided'}), 400
-        
-        rag_engine = current_app.extensions['rag_engine']
-        doc_id = rag_engine.add_training_data(text, category, metadata)
-        
-        logger.info(f"Training data added: {category} - {text[:50]}...")
-        
-        return jsonify({
-            'success': True,
-            'document_id': doc_id,
-            'text': text,
-            'category': category,
-            'message': f'Training data added for category: {category}'
-        })
-        
-    except Exception as e:
-        logger.error(f"Training data error: {str(e)}")
-        return jsonify({'error': 'Failed to add training data', 'details': str(e)}), 500
 
 @classifier_bp.route('/correct', methods=['POST'])
 def correct_classification():
@@ -181,42 +176,67 @@ def correct_classification():
 @classifier_bp.route('/categories', methods=['GET'])
 def get_categories():
     """Get available classification categories"""
-    from config import Config
+    profile = request.args.get('profile')
+    categories = Config.get_categories(profile)
     return jsonify({
-        'categories': Config.DEFAULT_CATEGORIES,
-        'total': len(Config.DEFAULT_CATEGORIES)
+        'categories': categories,
+        'total': len(categories),
+        'profile': profile or 'default'
     })
 
 @classifier_bp.route('/train', methods=['POST'])
 def train_classifier():
-    """Train classifier with new data"""
+    """Train classifier with one sample or a batch of samples."""
     try:
         data = request.get_json()
-        if not data or 'training_data' not in data:
-            return jsonify({'error': 'No training_data provided'}), 400
-        
-        training_data = data['training_data']
-        if not isinstance(training_data, list):
-            return jsonify({'error': 'training_data must be an array'}), 400
-        
         rag_engine = current_app.extensions['rag_engine']
-        
-        # Process training data
-        for item in training_data:
-            if 'text' not in item or 'category' not in item:
-                continue
-            
-            rag_engine.add_training_data(item['text'], item['category'], item.get('metadata', {}))
-        
-        # Trigger topic detection after training
-        emerging_topics = rag_engine.detect_emerging_topics()
-        
+
+        if data and 'training_data' in data:
+            training_data = data['training_data']
+            if not isinstance(training_data, list):
+                return jsonify({'error': 'training_data must be an array'}), 400
+
+            processed = 0
+            for item in training_data:
+                if 'text' not in item or 'category' not in item:
+                    continue
+                rag_engine.add_training_data(
+                    item['text'].strip(),
+                    item['category'].strip(),
+                    item.get('metadata', {}),
+                )
+                processed += 1
+
+            emerging_topics = rag_engine.detect_emerging_topics()
+            return jsonify({
+                'message': 'Training completed successfully',
+                'training_samples': processed,
+                'emerging_topics': len(emerging_topics)
+            })
+
+        if not data or 'text' not in data or 'category' not in data:
+            return jsonify({'error': 'Missing text or category in request'}), 400
+
+        text = data['text'].strip()
+        category = data['category'].strip()
+        metadata = data.get('metadata', {})
+
+        if not text:
+            return jsonify({'error': 'Empty text provided'}), 400
+
+        if not category:
+            return jsonify({'error': 'Empty category provided'}), 400
+
+        doc_id = rag_engine.add_training_data(text, category, metadata)
+        logger.info(f"Training data added: {category} - {text[:50]}...")
         return jsonify({
-            'message': 'Training completed successfully',
-            'training_samples': len(training_data),
-            'emerging_topics': len(emerging_topics)
+            'success': True,
+            'document_id': doc_id,
+            'text': text,
+            'category': category,
+            'message': f'Training data added for category: {category}'
         })
-        
+
     except Exception as e:
         logger.error(f"Training error: {str(e)}")
         return jsonify({'error': 'Training failed', 'details': str(e)}), 500
