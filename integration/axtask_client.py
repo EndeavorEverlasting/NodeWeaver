@@ -374,6 +374,13 @@ class AxTaskIntegration:
     def _apply_classification_result(self, task: Dict[str, Any], result: ClassificationResult) -> Dict[str, Any]:
         """Persist AxTask-compatible classification fields onto a task object."""
         axtask_classification = self._map_to_axtask_classification(result.predicted_category)
+        alternatives = []
+        for item in (result.all_categories or [])[:3]:
+            if not isinstance(item, dict):
+                continue
+            alternative = dict(item)
+            alternative['axtask_category'] = self._map_to_axtask_classification(item.get('category'))
+            alternatives.append(alternative)
         task['classification'] = axtask_classification
         task['category'] = axtask_classification
         task['classification_confidence'] = result.confidence_score
@@ -384,7 +391,7 @@ class AxTaskIntegration:
             'similar_topics_count': len(result.similar_topics),
             'processing_time': result.processing_time,
             'profile': 'axtask',
-            'alternatives': (result.all_categories or [])[:3],
+            'alternatives': alternatives,
         }
         return task
 
@@ -396,7 +403,15 @@ class AxTaskIntegration:
             'status': task.get('status'),
             'date': task.get('date'),
             'time': task.get('time'),
+            'urgency': task.get('urgency'),
+            'impact': task.get('impact'),
+            'effort': task.get('effort'),
+            'priority': task.get('priority'),
+            'priorityScore': task.get('priorityScore') or task.get('priority_score'),
+            'isRepeated': task.get('isRepeated') if 'isRepeated' in task else task.get('is_repeated'),
         }
+        if task.get('prerequisites'):
+            metadata['has_prerequisites'] = True
         return {key: value for key, value in metadata.items() if value not in (None, '')}
     
     def categorize_task(self, task: Dict[str, Any]) -> Dict[str, Any]:

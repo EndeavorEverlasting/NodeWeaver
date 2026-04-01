@@ -8,7 +8,7 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from integration.axtask_client import AxTaskIntegration, ClassificationResult, NodeWeaverAxTaskClient
-from utils.classification_profiles import extract_task_text, predict_axtask_categories
+from utils.classification_profiles import build_axtask_metadata, extract_task_text, predict_axtask_categories
 from utils.validators import validate_classification_input
 
 
@@ -91,6 +91,28 @@ class AxTaskCompatibilityTests(unittest.TestCase):
         self.assertEqual(results[0]['category'], 'Crisis')
         self.assertTrue(any(result['category'] == 'Development' for result in results))
 
+    def test_predict_axtask_categories_uses_priority_signals_and_metadata(self):
+        results = predict_axtask_categories(
+            'Safety inspection @critical today',
+            {'urgency': 5, 'impact': 5},
+        )
+
+        self.assertEqual(results[0]['category'], 'Crisis')
+        self.assertGreaterEqual(results[0]['signal_boost'], 2)
+
+    def test_build_axtask_metadata_merges_payload_fields(self):
+        metadata = build_axtask_metadata(
+            {'source': 'external-sync'},
+            payload={'id': 'task-9', 'urgency': 4, 'impact': 5, 'effort': 2, 'prerequisites': 'Call ops'},
+        )
+
+        self.assertEqual(metadata['axtask_id'], 'task-9')
+        self.assertEqual(metadata['urgency'], 4)
+        self.assertEqual(metadata['impact'], 5)
+        self.assertEqual(metadata['effort'], 2)
+        self.assertTrue(metadata['has_prerequisites'])
+        self.assertEqual(metadata['classification_profile'], 'axtask')
+
     def test_client_classify_task_adds_axtask_metadata(self):
         client = RecordingClient(api_url='http://nodeweaver.test')
         result = client.classify_task('Schedule sprint review', metadata={'axtask_id': 42})
@@ -116,7 +138,15 @@ class AxTaskCompatibilityTests(unittest.TestCase):
     def test_integration_maps_legacy_categories_to_axtask(self):
         classifier = StubClassifier()
         integration = AxTaskIntegration(nodeweaver_client=classifier)
-        task = {'id': 7, 'activity': 'Implement webhook handler', 'notes': 'Ship this sprint'}
+        task = {
+            'id': 7,
+            'activity': 'Implement webhook handler',
+            'notes': 'Ship this sprint',
+            'urgency': 4,
+            'impact': 5,
+            'effort': 2,
+            'prerequisites': 'Review AxTask contract',
+        }
 
         updated = integration.categorize_task(task)
 
@@ -125,7 +155,15 @@ class AxTaskCompatibilityTests(unittest.TestCase):
         self.assertTrue(updated['auto_categorized'])
         self.assertEqual(updated['classification_metadata']['nodeweaver_category'], 'technology')
         self.assertEqual(updated['classification_metadata']['alternatives'][0]['category'], 'technology')
-        self.assertEqual(classifier.calls[0]['task_text'], 'Implement webhook handler | Ship this sprint')
+        self.assertEqual(updated['classification_metadata']['alternatives'][0]['axtask_category'], 'Development')
+        self.assertEqual(
+            classifier.calls[0]['task_text'],
+            'Implement webhook handler | Ship this sprint | Review AxTask contract'
+        )
+        self.assertEqual(classifier.calls[0]['metadata']['urgency'], 4)
+        self.assertEqual(classifier.calls[0]['metadata']['impact'], 5)
+        self.assertEqual(classifier.calls[0]['metadata']['effort'], 2)
+        self.assertTrue(classifier.calls[0]['metadata']['has_prerequisites'])
 
     def test_setup_training_from_axtask_preserves_canonical_categories(self):
         classifier = StubClassifier()

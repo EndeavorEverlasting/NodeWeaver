@@ -4,15 +4,21 @@
 
 NodeWeaver is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, NodeWeaver integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
 
-**Version: 1.0.4 - AxTask Contract Hardening** - NodeWeaver now aligns its first-layer classifier with AxTask's current production contract, including crisis detection, canonical category normalization, and stronger batch metadata handling.
+**Version: 1.0.5 - AxTask Contract Workflow + Signal Matching** - NodeWeaver now treats AxTask `main` as a read-only public contract, merges AxTask task metadata automatically, and mirrors more of AxTask's priority signals in classification.
 
 **Live Audio Topic Detection** - NodeWeaver features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
 The system implements a sophisticated architecture where topics emerge from weighted node convergence using clustering algorithms, allowing for dynamic discovery of new patterns and categories in text data. This approach enables the system to adapt and learn from usage patterns while maintaining high classification accuracy.
 
-## Recent Changes (2025-08-04)
+## Recent Changes (2026-04-01)
 
-### Version 1.0.4 - AxTask Contract Hardening (Latest)
+### Version 1.0.5 - AxTask Contract Workflow + Signal Matching (Latest)
+✓ Documented AxTask `main` as the public, read-only contract for compatibility work
+✓ Added AxTask urgency, impact, effort, due-soon, and explicit tag signal boosts
+✓ Merged AxTask payload metadata into classify, batch, correction, and training flows
+✓ Exposed canonical AxTask alternative categories in integration metadata and docs
+
+### Version 1.0.4 - AxTask Contract Hardening
 ✓ Added AxTask-compatible `Crisis` category support with emergency/safety keyword prioritization
 ✓ Normalized AxTask classifications to canonical labels for classify, batch, correction, and training flows
 ✓ Preserved per-task metadata across batch requests for easier reconciliation with AxTask task IDs

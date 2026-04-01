@@ -5,6 +5,22 @@ All notable changes to NodeWeaver will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.5] - 2026-04-01
+
+### Added
+- AxTask priority-engine signal boosts for urgency, impact, effort, due-soon language, and explicit urgency tags
+- AxTask metadata merging from request payloads so classify, batch, train, and correction flows see the same task context
+- Contributor workflow guidance documenting AxTask as a public, read-only contract that NodeWeaver must follow
+
+### Changed
+- Updated NodeWeaverAxTaskClient metadata capture to preserve AxTask scoring fields and canonical alternative categories
+- Refreshed README, Getting Started, API docs, and workspace notes to center the AxTask-contract workflow
+- Updated package and application version metadata to 1.0.5
+
+### Fixed
+- AxTask documentation examples that still showed generic categories or outdated client usage
+- Install instructions and environment examples that still referenced stale TopicSense-era values
+
 ## [1.0.4] - 2026-04-01
 
 ### Added

@@ -1,5 +1,21 @@
 # NodeWeaver Version History
 
+## Version 1.0.5 (2026-04-01) - AxTask Contract Workflow + Signal Matching
+
+### 🤝 AxTask Contract Workflow
+- **Public Read-Only Contract**: Documented the rule that AxTask `main` is pulled and analyzed as the source-of-truth, while compatibility changes are implemented only in NodeWeaver
+- **Contributor Guidance**: Updated project workflow docs so AxTask schema, keyword logic, and UI expectations are cited during compatibility work
+
+### 🧠 Classifier Improvements
+- **Priority-Engine Signals**: Added urgency, impact, effort, due-soon, and explicit tag boosts so NodeWeaver mirrors more of AxTask's real-world prioritization behavior
+- **Payload-Aware Metadata**: Single, batch, correction, and training flows now merge AxTask payload metadata automatically before classification or learning
+- **Alternative Category Mapping**: AxTask integration responses now annotate alternative predictions with canonical AxTask labels for debugging and reconciliation
+
+### 🧪 Validation
+- Added focused compatibility coverage for signal boosts, payload metadata merging, and AxTask integration metadata capture
+- Verified with `python -m unittest tests.test_axtask_compatibility`
+- Verified with `python -m unittest discover -s tests`
+
 ## Version 1.0.4 (2026-04-01) - AxTask Contract Hardening
 
 ### 🤝 AxTask Compatibility

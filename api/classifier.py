@@ -37,7 +37,7 @@ def classify_text():
         text = extract_task_text(data)
         metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
         if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
-            metadata = build_axtask_metadata(metadata)
+            metadata = build_axtask_metadata(metadata, payload=data)
         
         # Get RAG engine from app context
         rag_engine = current_app.extensions['rag_engine']
@@ -96,14 +96,14 @@ def classify_batch():
                     texts.append(task_text)
                     task_metadata = deepcopy(task.get('metadata', {})) if isinstance(task.get('metadata'), dict) else {}
                     if is_axtask_payload(task):
-                        task_metadata = build_axtask_metadata(task_metadata)
+                        task_metadata = build_axtask_metadata(task_metadata, payload=task)
                     metadata_list.append(task_metadata)
 
         if not isinstance(texts, list) or len(texts) == 0:
             return jsonify({'error': 'texts or tasks must be a non-empty array'}), 400
 
         if resolve_classification_profile(shared_metadata) == 'axtask':
-            shared_metadata = build_axtask_metadata(shared_metadata)
+            shared_metadata = build_axtask_metadata(shared_metadata, payload=data)
         elif isinstance(data, dict) and 'tasks' in data:
             shared_metadata = build_axtask_metadata(shared_metadata)
         
@@ -156,7 +156,7 @@ def correct_classification():
         text = data['text'].strip()
         metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
         if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
-            metadata = build_axtask_metadata(metadata)
+            metadata = build_axtask_metadata(metadata, payload=data)
         correct_category = normalize_profile_category(data['correct_category'], metadata)
         
         if not text:
@@ -216,7 +216,7 @@ def train_classifier():
                     continue
                 item_metadata = item.get('metadata', {}) if isinstance(item.get('metadata'), dict) else {}
                 if resolve_classification_profile(item_metadata) == 'axtask':
-                    item_metadata = build_axtask_metadata(item_metadata)
+                    item_metadata = build_axtask_metadata(item_metadata, payload=item)
                 rag_engine.add_training_data(
                     item['text'].strip(),
                     normalize_profile_category(item['category'], item_metadata),
@@ -237,7 +237,7 @@ def train_classifier():
         text = data['text'].strip()
         metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
         if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
-            metadata = build_axtask_metadata(metadata)
+            metadata = build_axtask_metadata(metadata, payload=data)
         category = normalize_profile_category(data['category'], metadata)
 
         if not text:

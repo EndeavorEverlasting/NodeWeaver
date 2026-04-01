@@ -1,6 +1,6 @@
 # NodeWeaver API Documentation
 
-**Version:** 1.0.4  
+**Version:** 1.0.5  
 **Base URL:** `http://localhost:5000/api/v1`  
 **Content-Type:** `application/json`
 
@@ -25,6 +25,8 @@ Currently, the API does not require authentication for development. Production d
 #### Classify Text
 Classify a single text input into predefined categories or an integration-specific profile such as AxTask.
 
+When `classification_profile` is `axtask`, NodeWeaver treats AxTask as the source-of-truth contract and normalizes both payloads and result labels to AxTask-safe categories.
+
 ```http
 POST /api/v1/classify
 ```
@@ -32,9 +34,13 @@ POST /api/v1/classify
 **Request Body:**
 ```json
 {
-  "text": "I need to finish my research paper by tomorrow",
+  "activity": "Inspect warehouse exit lights",
+  "notes": "Safety alarm triggered today",
+  "urgency": 5,
+  "impact": 5,
   "metadata": {
-    "classification_profile": "axtask"
+    "classification_profile": "axtask",
+    "axtask_id": 101
   }
 }
 ```
@@ -42,23 +48,18 @@ POST /api/v1/classify
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "text": "I need to finish my research paper by tomorrow",
-    "category": "academic",
-    "confidence": 0.89,
-    "similar_topics": [
-      {
-        "topic": "education",
-        "similarity": 0.76
-      },
-      {
-        "topic": "deadline management",
-        "similarity": 0.68
-      }
-    ]
-  },
-  "timestamp": "2025-08-04T19:30:52Z"
+  "predicted_category": "Crisis",
+  "confidence_score": 0.99,
+  "all_categories": [
+    {"category": "Crisis", "confidence": 0.99, "keyword_matches": 7},
+    {"category": "Administrative", "confidence": 0.72, "keyword_matches": 2}
+  ],
+  "similar_topics": [],
+  "topic_associations": [],
+  "document_id": 18,
+  "processing_time": 0.04,
+  "log_id": 33,
+  "classification_profile": "axtask"
 }
 ```
 
@@ -76,11 +77,14 @@ POST /api/v1/classify/batch
     {
       "activity": "Call facilities",
       "notes": "Emergency water leak in office",
+      "urgency": 5,
+      "impact": 4,
       "metadata": {"axtask_id": 101}
     },
     {
       "activity": "Refactor webhook handler",
       "notes": "Ship before Friday",
+      "effort": 2,
       "metadata": {"axtask_id": 102}
     }
   ]
@@ -90,29 +94,20 @@ POST /api/v1/classify/batch
 **Response:**
 ```json
 {
-  "success": true,
-  "data": {
-    "results": [
-      {
-        "text": "Meeting with client at 2pm",
-        "category": "work",
-        "confidence": 0.92
-      },
-      {
-        "text": "Buy groceries on the way home",
-        "category": "personal",
-        "confidence": 0.87
-      },
-      {
-        "text": "Submit assignment before deadline",
-        "category": "academic",
-        "confidence": 0.91
-      }
-    ],
-    "processed_count": 3,
-    "failed_count": 0
-  },
-  "timestamp": "2025-08-04T19:30:52Z"
+  "results": [
+    {
+      "predicted_category": "Crisis",
+      "confidence_score": 0.99,
+      "all_categories": [{"category": "Crisis", "confidence": 0.99}]
+    },
+    {
+      "predicted_category": "Development",
+      "confidence_score": 0.87,
+      "all_categories": [{"category": "Development", "confidence": 0.87}]
+    }
+  ],
+  "processing_time": 0.06,
+  "count": 2
 }
 ```
 
@@ -380,10 +375,10 @@ class NodeWeaverClient:
     def __init__(self, base_url="http://localhost:5000/api/v1"):
         self.base_url = base_url
     
-    def classify_text(self, text, categories=None):
+    def classify_text(self, text, metadata=None):
         payload = {"text": text}
-        if categories:
-            payload["categories"] = categories
+        if metadata:
+            payload["metadata"] = metadata
         
         response = requests.post(
             f"{self.base_url}/classify",
@@ -393,8 +388,11 @@ class NodeWeaverClient:
 
 # Usage
 client = NodeWeaverClient()
-result = client.classify_text("Finish the quarterly report")
-print(result["data"]["category"])  # "work"
+result = client.classify_text(
+    "Inspect exit signs today",
+    metadata={"classification_profile": "axtask", "urgency": 5, "impact": 5},
+)
+print(result["predicted_category"])  # "Crisis"
 ```
 
 ### JavaScript SDK Example
@@ -404,9 +402,9 @@ class NodeWeaverClient {
         this.baseUrl = baseUrl;
     }
     
-    async classifyText(text, categories = null) {
+    async classifyText(text, metadata = null) {
         const payload = { text };
-        if (categories) payload.categories = categories;
+        if (metadata) payload.metadata = metadata;
         
         const response = await fetch(`${this.baseUrl}/classify`, {
             method: 'POST',
@@ -420,8 +418,11 @@ class NodeWeaverClient {
 
 // Usage
 const client = new NodeWeaverClient();
-const result = await client.classifyText('Plan vacation for next month');
-console.log(result.data.category); // "personal"
+const result = await client.classifyText('Refactor webhook handler', {
+    classification_profile: 'axtask',
+    effort: 2
+});
+console.log(result.predicted_category); // "Development"
 ```
 
 ## Performance Optimization

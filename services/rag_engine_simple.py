@@ -92,7 +92,7 @@ class SimpleRAGEngine:
     def _predict_categories_multi(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Multi-label classification - return all matching categories with confidence scores"""
         if resolve_classification_profile(metadata) == 'axtask':
-            return predict_axtask_categories(text)
+            return predict_axtask_categories(text, metadata)
 
         text_lower = text.lower().strip()
         categories = []

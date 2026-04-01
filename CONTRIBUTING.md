@@ -47,7 +47,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 3. **Install dependencies**
    ```bash
-   pip install -r requirements.txt
+   pip install -e .
    ```
 
 4. **Set up environment variables**
@@ -65,6 +65,17 @@ By participating in this project, you agree to abide by our Code of Conduct:
    ```bash
    python main.py
    ```
+
+### AxTask Contract Workflow
+
+When a change is meant to improve AxTask compatibility, use this workflow:
+
+1. Pull the latest `main` branch in the local AxTask checkout for reference.
+2. Treat AxTask as read-only during NodeWeaver work: do not edit, commit, or push AxTask changes.
+3. Inspect AxTask schema, keyword logic, and UI expectations to identify the contract NodeWeaver must satisfy.
+4. Implement compatibility changes only in NodeWeaver.
+5. Add or update targeted tests in `tests/test_axtask_compatibility.py`.
+6. Document any new contract assumptions in the README, API docs, and release notes.
 
 ## Contributing Process
 
@@ -96,7 +107,7 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 3. **Write or update tests** for your changes
 
-4. **Update documentation** if necessary
+4. **Update documentation** if necessary, especially when AxTask-facing behavior changes
 
 5. **Commit your changes** with clear, descriptive messages
    ```bash
@@ -105,7 +116,12 @@ By participating in this project, you agree to abide by our Code of Conduct:
 
 6. **Push to your fork** and create a pull request
 
-7. **Address review feedback** and update as needed
+7. **For AxTask compatibility PRs**, include:
+   - AxTask files reviewed (for example `shared/schema.ts` or `client/src/lib/priority-engine.ts`)
+   - the NodeWeaver tests added or updated
+   - any contract assumptions captured in docs
+
+8. **Address review feedback** and update as needed
 
 ### Commit Message Format
 
@@ -168,13 +184,10 @@ Types:
 
 ```bash
 # Run all tests
-python -m pytest
-
-# Run with coverage
-python -m pytest --cov=.
+python -m unittest discover -s tests
 
 # Run specific test file
-python -m pytest tests/test_classifier.py
+python -m unittest tests.test_axtask_compatibility
 ```
 
 ### Test Guidelines
@@ -225,7 +238,7 @@ def test_function_name_expected_behavior():
 ## Project Structure
 
 ```
-topicsense/
+nodeweaver/
 ├── api/                 # API blueprints and routing
 ├── models/              # Database models
 ├── services/            # Business logic services
@@ -260,4 +273,4 @@ topicsense/
 - Join our community discussions
 - Contact maintainers for complex questions
 
-Thank you for contributing to TopicSense! Your efforts help make this project better for everyone.
+Thank you for contributing to NodeWeaver! Your efforts help make this project better for everyone.

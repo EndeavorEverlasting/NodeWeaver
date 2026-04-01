@@ -1,8 +1,15 @@
 # NodeWeaver - RAG Classifier API
 
-![Version](https://img.shields.io/badge/Version-1.0.4-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![Version](https://img.shields.io/badge/Version-1.0.5-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 
 **NodeWeaver** is an intelligent, production-ready RAG (Retrieval-Augmented Generation) classifier API designed for automatic task categorization with real-time audio processing capabilities. It integrates seamlessly with AxTask and Google Sheets to eliminate manual task classification through advanced topic emergence detection and weighted node convergence algorithms.
+
+## 🤝 AxTask Contract Workflow
+
+- **AxTask `main` is the public contract**: pull it, read it, and index it before changing compatibility logic in NodeWeaver.
+- **AxTask stays read-only from this workflow**: do not implement fixes there from NodeWeaver work.
+- **NodeWeaver adapts**: schema normalization, keyword heuristics, metadata handling, and docs should be updated here.
+- **Compatibility changes require tests**: if AxTask behavior shifts, add or update focused AxTask tests in `tests/test_axtask_compatibility.py`.
 
 ## 🚀 Quick Start
 
@@ -34,6 +41,7 @@ pip install -e . && python main.py
 ### Integration Support
 - **AxTask Integration**: Seamless connection with AxTask for productivity automation
 - **AxTask Contract Hardening**: Accepts AxTask payloads (`activity`, `notes`, `prerequisites`), preserves task metadata in batch requests, and normalizes output to AxTask-safe labels
+- **Priority-Engine Signal Matching**: Uses AxTask-inspired urgency, impact, effort, tag, and time-sensitive boosts so NodeWeaver stays stricter than generic classifiers
 - **Google Sheets**: Apps Script integration for automatic spreadsheet categorization
 - **Extensible Architecture**: Easy to integrate with other productivity tools and platforms
 

@@ -22,7 +22,7 @@ python -m venv venv
 source venv/bin/activate  # Windows: venv\Scripts\activate
 
 # Install dependencies
-pip install -r pyproject.toml  # Or use: pip install -e .
+pip install -e .
 ```
 
 ### 3. Database Setup
@@ -56,7 +56,7 @@ CREATE EXTENSION vector;
 cp .env.example .env
 
 # Edit .env with your settings
-# DATABASE_URL=postgresql://rag_user:rag_pass@localhost:5432/topicsense
+# DATABASE_URL=postgresql://rag_user:rag_pass@localhost:5432/nodeweaver
 # SESSION_SECRET=your-secret-key-here
 ```
 
@@ -89,6 +89,13 @@ Visit `http://localhost:5000/test` for the interactive test interface.
 curl -X POST http://localhost:5000/api/v1/classify \
   -H "Content-Type: application/json" \
   -d '{"text": "I need to finish my research paper by tomorrow"}'
+```
+
+**Classify an AxTask payload:**
+```bash
+curl -X POST http://localhost:5000/api/v1/classify \
+  -H "Content-Type: application/json" \
+  -d '{"activity":"Inspect server room","notes":"Safety alarm triggered today","urgency":5,"impact":5,"metadata":{"classification_profile":"axtask","axtask_id":101}}'
 ```
 
 **Check Health:**
@@ -134,7 +141,7 @@ docker-compose down
 
 ## Web Interface
 
-TopicSense includes several web interfaces:
+NodeWeaver includes several web interfaces:
 
 - **Home**: `http://localhost:5000/` - Project overview
 - **API Docs**: `http://localhost:5000/docs` - Interactive API documentation
@@ -175,11 +182,13 @@ Classify user-generated content into appropriate categories for moderation and o
 ### AxTask Integration
 
 ```python
-from integration.axtask_client import AxTaskClient
+from integration.axtask_client import AxTaskIntegration, NodeWeaverAxTaskClient
 
-client = AxTaskClient(base_url='http://localhost:5000')
-tasks = client.get_tasks()
-categorized = client.classify_tasks(tasks)
+client = NodeWeaverAxTaskClient(api_url='http://localhost:5000/api/v1')
+integration = AxTaskIntegration(nodeweaver_client=client)
+
+task = {"id": 42, "activity": "Refactor webhook handler", "notes": "Ship before Friday"}
+categorized = integration.categorize_task(task)
 ```
 
 ### Google Sheets Integration
@@ -202,7 +211,7 @@ Use the provided Apps Script in `integration/google_apps_script.js` to automatic
 
 3. **Import Errors**
    - Activate virtual environment: `source venv/bin/activate`
-   - Install dependencies: `pip install -r pyproject.toml`
+   - Install dependencies: `pip install -e .`
 
 ### Getting Help
 
@@ -225,4 +234,4 @@ Use the provided Apps Script in `integration/google_apps_script.js` to automatic
 - Monitor database performance with indexes
 - Consider Redis for improved response times
 
-Welcome to TopicSense! Start building intelligent task categorization into your applications.
+Welcome to NodeWeaver! Start building intelligent task categorization into your applications.
