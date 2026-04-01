@@ -1,6 +1,6 @@
 # NodeWeaver - RAG Classifier API
 
-![Version](https://img.shields.io/badge/Version-1.0.1-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
+![Version](https://img.shields.io/badge/Version-1.0.4-brightgreen) ![Python](https://img.shields.io/badge/Python-3.11%2B-blue) ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%2B-blue) ![Docker](https://img.shields.io/badge/Docker-Ready-blue)
 
 **NodeWeaver** is an intelligent, production-ready RAG (Retrieval-Augmented Generation) classifier API designed for automatic task categorization with real-time audio processing capabilities. It integrates seamlessly with AxTask and Google Sheets to eliminate manual task classification through advanced topic emergence detection and weighted node convergence algorithms.
 
@@ -25,7 +25,7 @@ pip install -e . && python main.py
 ## 🚀 Features
 
 ### Core Capabilities
-- **Automatic Text Classification**: Intelligent categorization into personal, work, academic, political, and other categories
+- **Automatic Text Classification**: Intelligent categorization across universal profiles plus the AxTask canonical categories `Crisis`, `Development`, `Meeting`, `Research`, `Maintenance`, `Administrative`, and `General`
 - **Topic Emergence Detection**: Discovers new topics through weighted node convergence using DBSCAN clustering
 - **Vector Similarity Search**: PostgreSQL with pgvector for high-performance semantic search
 - **Batch Processing**: Process up to 100 texts simultaneously for efficiency
@@ -33,6 +33,7 @@ pip install -e . && python main.py
 
 ### Integration Support
 - **AxTask Integration**: Seamless connection with AxTask for productivity automation
+- **AxTask Contract Hardening**: Accepts AxTask payloads (`activity`, `notes`, `prerequisites`), preserves task metadata in batch requests, and normalizes output to AxTask-safe labels
 - **Google Sheets**: Apps Script integration for automatic spreadsheet categorization
 - **Extensible Architecture**: Easy to integrate with other productivity tools and platforms
 

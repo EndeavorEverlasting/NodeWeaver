@@ -1,9 +1,24 @@
 # Changelog
 
-All notable changes to TopicSense will be documented in this file.
+All notable changes to NodeWeaver will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.0.4] - 2026-04-01
+
+### Added
+- AxTask-compatible `Crisis` classification profile support aligned with current AxTask expectations
+- Batch metadata preservation for AxTask task arrays and client-side alternative category capture
+
+### Changed
+- Normalized AxTask profile results to canonical categories before returning API responses or storing training labels
+- Hardened AxTask integration metadata so task identifiers, schedule fields, and source markers stay attached during classify/train flows
+- Updated package and application version metadata to 1.0.4
+
+### Fixed
+- Prioritization of crisis/emergency matches over generic development or maintenance keywords
+- Legacy documentation branding drift that still referenced TopicSense in release notes and API examples
 
 ## [1.0.1] - 2025-08-04
 

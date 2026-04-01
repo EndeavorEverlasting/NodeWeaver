@@ -22,12 +22,12 @@ class Config:
         'entertainment', 'travel', 'shopping', 'technology', 'other'
     ]
     AXTASK_CATEGORIES = [
-        'Development', 'Meeting', 'Research', 'Maintenance', 'Administrative', 'General'
+        'Crisis', 'Development', 'Meeting', 'Research', 'Maintenance', 'Administrative', 'General'
     ]
     
     # API configuration
     API_VERSION = 'v1'
-    APP_VERSION = '1.0.3'
+    APP_VERSION = '1.0.4'
     MAX_INPUT_LENGTH = int(os.environ.get('MAX_INPUT_LENGTH', '10000'))
     
     # Logging configuration

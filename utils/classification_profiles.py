@@ -6,6 +6,11 @@ from config import Config
 
 AXTASK_PROFILE_NAME = 'axtask'
 AXTASK_CATEGORY_ALIASES = {
+    'crisis': 'Crisis',
+    'emergency': 'Crisis',
+    'urgent': 'Crisis',
+    'incident': 'Crisis',
+    'safety': 'Crisis',
     'development': 'Development',
     'dev': 'Development',
     'technology': 'Development',
@@ -40,11 +45,36 @@ AXTASK_CATEGORY_ALIASES = {
 DEFAULT_AXTASK_CATEGORY_MAPPING = dict(AXTASK_CATEGORY_ALIASES)
 
 _AXTASK_KEYWORDS = {
-    'Development': ['api', 'backend', 'bug', 'build', 'code', 'database', 'debug', 'deploy', 'development', 'feature', 'fix', 'frontend', 'implementation', 'programming', 'refactor', 'release', 'repo', 'software', 'test'],
-    'Meeting': ['1:1', 'call', 'conference', 'demo', 'discuss', 'discussion', 'kickoff', 'meeting', 'presentation', 'present', 'retro', 'review meeting', 'standup', 'sync', 'workshop'],
-    'Research': ['analyze', 'analysis', 'benchmark', 'compare', 'evaluate', 'explore', 'investigate', 'learn', 'prototype', 'research', 'study'],
-    'Maintenance': ['backup', 'cleanup', 'configure', 'install', 'maintain', 'maintenance', 'migrate', 'monitor', 'patch', 'renew', 'restore', 'setup', 'update', 'upgrade'],
-    'Administrative': ['admin', 'approve', 'compliance', 'confirm', 'contract', 'coordination', 'document', 'email', 'follow-up', 'followup', 'invoice', 'paperwork', 'report', 'sign', 'submit'],
+    'Crisis': {
+        'keywords': ['accident', 'alarm', 'ambulance', 'bleeding', 'choking', 'collapse', 'critical', 'danger', 'dead', 'death', 'dying', 'emergency', 'evacuate', 'fatal', 'fire', 'flood', 'hazard', 'help', 'hospital', 'hurt', 'incident', 'injured', 'injury', 'medical', 'osha', 'overdose', 'panic', 'poison', 'rescue', 'safety', 'seizure', 'severe', 'sos', 'stroke', 'suicide', 'threat', 'trapped', 'unconscious', 'unsafe', 'violation'],
+        'base_confidence': 0.97,
+        'priority': 100,
+    },
+    'Development': {
+        'keywords': ['api', 'backend', 'bug', 'bugfix', 'build', 'code', 'database', 'debug', 'deploy', 'development', 'feature', 'fix', 'frontend', 'implementation', 'integration', 'programming', 'refactor', 'release', 'repo', 'ship', 'software', 'test', 'webhook'],
+        'base_confidence': 0.72,
+        'priority': 80,
+    },
+    'Meeting': {
+        'keywords': ['1:1', 'briefing', 'call', 'conference', 'demo', 'discuss', 'discussion', 'kickoff', 'meeting', 'presentation', 'present', 'retro', 'review meeting', 'standup', 'sync', 'workshop'],
+        'base_confidence': 0.7,
+        'priority': 70,
+    },
+    'Research': {
+        'keywords': ['analyze', 'analysis', 'benchmark', 'compare', 'evaluate', 'explore', 'investigate', 'learn', 'prototype', 'research', 'study'],
+        'base_confidence': 0.68,
+        'priority': 60,
+    },
+    'Maintenance': {
+        'keywords': ['backup', 'cleanup', 'configure', 'install', 'maintain', 'maintenance', 'migrate', 'monitor', 'patch', 'renew', 'restore', 'setup', 'support', 'update', 'upgrade'],
+        'base_confidence': 0.66,
+        'priority': 50,
+    },
+    'Administrative': {
+        'keywords': ['admin', 'approve', 'compliance', 'confirm', 'contract', 'coordination', 'document', 'email', 'follow-up', 'followup', 'invoice', 'paperwork', 'report', 'sign', 'submit'],
+        'base_confidence': 0.64,
+        'priority': 40,
+    },
 }
 
 
@@ -81,6 +111,19 @@ def build_axtask_metadata(metadata: Optional[Dict[str, Any]] = None) -> Dict[str
     return combined
 
 
+def normalize_profile_category(
+    category: Optional[str],
+    metadata: Optional[Dict[str, Any]] = None,
+    fallback: str = 'other',
+) -> str:
+    """Normalize a category for the active classification profile."""
+    if resolve_classification_profile(metadata) == AXTASK_PROFILE_NAME:
+        return normalize_axtask_category(category)
+
+    normalized = str(category or '').strip().lower()
+    return normalized or fallback
+
+
 def extract_task_text(payload: Optional[Dict[str, Any]]) -> str:
     """Extract classifier text from AxTask or generic task payloads."""
     if not isinstance(payload, dict):
@@ -108,6 +151,46 @@ def normalize_axtask_category(category: Optional[str], fallback: str = 'General'
     return AXTASK_CATEGORY_ALIASES.get(key, fallback)
 
 
+def normalize_profile_result(
+    result: Optional[Dict[str, Any]],
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Normalize result categories for the active classification profile."""
+    normalized_result = dict(result or {})
+    if resolve_classification_profile(metadata) != AXTASK_PROFILE_NAME:
+        return normalized_result
+
+    normalized_result['predicted_category'] = normalize_axtask_category(
+        normalized_result.get('predicted_category')
+    )
+    normalized_result['classification_profile'] = AXTASK_PROFILE_NAME
+
+    deduped_categories: Dict[str, Dict[str, Any]] = {}
+    for item in normalized_result.get('all_categories', []):
+        if not isinstance(item, dict):
+            continue
+
+        category = normalize_axtask_category(item.get('category'))
+        candidate = dict(item)
+        candidate['category'] = category
+
+        existing = deduped_categories.get(category)
+        if not existing or float(candidate.get('confidence', 0.0)) > float(existing.get('confidence', 0.0)):
+            deduped_categories[category] = candidate
+
+    if deduped_categories:
+        normalized_result['all_categories'] = sorted(
+            deduped_categories.values(),
+            key=lambda item: (
+                float(item.get('confidence', 0.0)),
+                int(item.get('keyword_matches', 0)),
+            ),
+            reverse=True,
+        )
+
+    return normalized_result
+
+
 def predict_axtask_categories(text: str) -> List[Dict[str, Any]]:
     """Predict AxTask-compatible classifications from free-form task text."""
     text_lower = (text or '').lower().strip()
@@ -116,21 +199,28 @@ def predict_axtask_categories(text: str) -> List[Dict[str, Any]]:
 
     tokens = set(re.findall(r"[a-z0-9']+", text_lower))
     results = []
-    for category, keywords in _AXTASK_KEYWORDS.items():
+    for category, config in _AXTASK_KEYWORDS.items():
+        keywords = config['keywords']
         matches = 0
         for keyword in keywords:
             if (' ' in keyword and keyword in text_lower) or keyword in tokens:
                 matches += 1
         if matches:
-            confidence = min(0.96, 0.62 + matches * 0.08)
+            confidence = min(0.99, config['base_confidence'] + (min(matches, 4) * 0.05))
             results.append({
                 'category': category,
                 'confidence': confidence,
                 'keyword_matches': matches,
+                'priority': config['priority'],
             })
 
     if not results:
         return [{'category': 'General', 'confidence': 0.45, 'keyword_matches': 0}]
 
-    results.sort(key=lambda item: (item['confidence'], item['keyword_matches']), reverse=True)
+    results.sort(
+        key=lambda item: (item['confidence'], item['keyword_matches'], item['priority']),
+        reverse=True,
+    )
+    for item in results:
+        item.pop('priority', None)
     return results

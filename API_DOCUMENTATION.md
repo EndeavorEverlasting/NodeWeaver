@@ -1,6 +1,6 @@
 # NodeWeaver API Documentation
 
-**Version:** 1.0.1  
+**Version:** 1.0.4  
 **Base URL:** `http://localhost:5000/api/v1`  
 **Content-Type:** `application/json`
 
@@ -23,7 +23,7 @@ Currently, the API does not require authentication for development. Production d
 ### Text Classification
 
 #### Classify Text
-Classify a single text input into predefined categories.
+Classify a single text input into predefined categories or an integration-specific profile such as AxTask.
 
 ```http
 POST /api/v1/classify
@@ -33,7 +33,9 @@ POST /api/v1/classify
 ```json
 {
   "text": "I need to finish my research paper by tomorrow",
-  "categories": ["personal", "work", "academic", "other"]  // optional
+  "metadata": {
+    "classification_profile": "axtask"
+  }
 }
 ```
 
@@ -70,12 +72,18 @@ POST /api/v1/classify/batch
 **Request Body:**
 ```json
 {
-  "texts": [
-    "Meeting with client at 2pm",
-    "Buy groceries on the way home",
-    "Submit assignment before deadline"
-  ],
-  "categories": ["personal", "work", "academic"]
+  "tasks": [
+    {
+      "activity": "Call facilities",
+      "notes": "Emergency water leak in office",
+      "metadata": {"axtask_id": 101}
+    },
+    {
+      "activity": "Refactor webhook handler",
+      "notes": "Ship before Friday",
+      "metadata": {"axtask_id": 102}
+    }
+  ]
 }
 ```
 
@@ -368,7 +376,7 @@ For real-time audio processing, connect to WebSocket endpoint:
 ```python
 import requests
 
-class TopicSenseClient:
+class NodeWeaverClient:
     def __init__(self, base_url="http://localhost:5000/api/v1"):
         self.base_url = base_url
     
@@ -384,14 +392,14 @@ class TopicSenseClient:
         return response.json()
 
 # Usage
-client = TopicSenseClient()
+client = NodeWeaverClient()
 result = client.classify_text("Finish the quarterly report")
 print(result["data"]["category"])  # "work"
 ```
 
 ### JavaScript SDK Example
 ```javascript
-class TopicSenseClient {
+class NodeWeaverClient {
     constructor(baseUrl = 'http://localhost:5000/api/v1') {
         this.baseUrl = baseUrl;
     }
@@ -411,7 +419,7 @@ class TopicSenseClient {
 }
 
 // Usage
-const client = new TopicSenseClient();
+const client = new NodeWeaverClient();
 const result = await client.classifyText('Plan vacation for next month');
 console.log(result.data.category); // "personal"
 ```

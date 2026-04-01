@@ -1,5 +1,22 @@
 # NodeWeaver Version History
 
+## Version 1.0.4 (2026-04-01) - AxTask Contract Hardening
+
+### 🤝 AxTask Compatibility
+- **Canonical AxTask Categories**: Added first-class support for `Crisis`, `Development`, `Meeting`, `Research`, `Maintenance`, `Administrative`, and `General`
+- **Payload Aliasing**: AxTask-style task payloads using `activity`, `notes`, and `prerequisites` now normalize consistently across single and batch classification
+- **Metadata Preservation**: Batch requests now keep AxTask task metadata aligned with each item for auditing, learning, and downstream reconciliation
+
+### 🛡️ Classification Improvements
+- **Crisis Priority Overrides**: Emergency and safety language now outranks generic task keywords to better match AxTask's current production classifier contract
+- **Canonical Result Normalization**: API responses and training data are normalized to AxTask-safe category labels before being returned or stored
+- **Alternative Labels**: AxTask integration responses now retain top alternative categories for debugging and future UX use
+
+### 🧪 Validation
+- Added focused compatibility coverage for crisis detection, batch metadata handling, and historical training normalization
+- Verified with `python -m unittest tests.test_axtask_compatibility`
+- Verified with `python -m compileall __init__.py app.py config.py api integration services utils tests`
+
 ## Version 1.0.2 (2025-08-04) - Multi-Classification Enhancement
 
 ### 🚀 Major Features

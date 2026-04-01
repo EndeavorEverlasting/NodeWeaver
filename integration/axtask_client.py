@@ -28,6 +28,7 @@ class ClassificationResult:
     similar_nodes: List[Dict[str, Any]]
     processing_time: float
     document_id: Optional[int] = None
+    all_categories: Optional[List[Dict[str, Any]]] = None
 
 class NodeWeaverAxTaskClient:
     """
@@ -146,14 +147,19 @@ class NodeWeaverAxTaskClient:
             similar_topics=response.get('similar_topics', []),
             similar_nodes=response.get('similar_nodes', []),
             processing_time=response.get('processing_time', 0.0),
-            document_id=response.get('document_id')
+            document_id=response.get('document_id'),
+            all_categories=response.get('all_categories', []),
         )
         
         logger.info(f"Task classified as '{result.predicted_category}' with {result.confidence_score:.2f} confidence")
         
         return result
     
-    def classify_tasks_batch(self, tasks: List[str]) -> List[ClassificationResult]:
+    def classify_tasks_batch(
+        self,
+        tasks: List[str],
+        metadata_list: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[ClassificationResult]:
         """
         Classify multiple tasks in batch
         
@@ -173,8 +179,18 @@ class NodeWeaverAxTaskClient:
         if len(tasks) > 100:
             raise ValueError("Batch size limited to 100 tasks")
         
-        # Filter out empty tasks
-        valid_tasks = [task.strip() for task in tasks if task and task.strip()]
+        if metadata_list is not None and len(metadata_list) != len(tasks):
+            raise ValueError("metadata_list must match tasks length")
+
+        # Filter out empty tasks while preserving aligned metadata
+        valid_tasks = []
+        valid_metadata_list = []
+        for index, task in enumerate(tasks):
+            if task and task.strip():
+                valid_tasks.append(task.strip())
+                if metadata_list is not None:
+                    task_metadata = metadata_list[index] if isinstance(metadata_list[index], dict) else {}
+                    valid_metadata_list.append(build_axtask_metadata(task_metadata))
         
         if not valid_tasks:
             raise ValueError("No valid tasks found")
@@ -186,11 +202,8 @@ class NodeWeaverAxTaskClient:
             method='POST',
             data={
                 'texts': valid_tasks,
-                'metadata': {
-                    'source': 'axtask',
-                    'target_system': 'axtask',
-                    'classification_profile': 'axtask',
-                }
+                'metadata': build_axtask_metadata(),
+                'metadata_list': valid_metadata_list if metadata_list is not None else None,
             }
         )
         
@@ -212,7 +225,8 @@ class NodeWeaverAxTaskClient:
                     similar_topics=result_data.get('similar_topics', []),
                     similar_nodes=result_data.get('similar_nodes', []),
                     processing_time=result_data.get('processing_time', 0.0),
-                    document_id=result_data.get('document_id')
+                    document_id=result_data.get('document_id'),
+                    all_categories=result_data.get('all_categories', []),
                 )
             results.append(result)
         
@@ -370,8 +384,20 @@ class AxTaskIntegration:
             'similar_topics_count': len(result.similar_topics),
             'processing_time': result.processing_time,
             'profile': 'axtask',
+            'alternatives': (result.all_categories or [])[:3],
         }
         return task
+
+    def _build_task_metadata(self, task: Dict[str, Any], source: str = 'axtask') -> Dict[str, Any]:
+        """Build stable AxTask metadata for logging, learning, and batch requests."""
+        metadata = {
+            'axtask_id': task.get('id'),
+            'source': source,
+            'status': task.get('status'),
+            'date': task.get('date'),
+            'time': task.get('time'),
+        }
+        return {key: value for key, value in metadata.items() if value not in (None, '')}
     
     def categorize_task(self, task: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -392,7 +418,7 @@ class AxTaskIntegration:
         try:
             result = self.client.classify_task(
                 task_text, 
-                metadata={'axtask_id': task.get('id'), 'source': 'axtask'}
+                metadata=self._build_task_metadata(task)
             )
             
             self._apply_classification_result(task, result)
@@ -431,12 +457,14 @@ class AxTaskIntegration:
         # Extract texts for batch processing
         tasks_with_text = []
         task_texts = []
+        task_metadata_list = []
         
         for task in project_tasks:
             text = self._extract_task_text(task)
             if text:
                 tasks_with_text.append(task)
                 task_texts.append(text)
+                task_metadata_list.append(self._build_task_metadata(task))
         
         if not task_texts:
             logger.warning("No tasks with text found for categorization")
@@ -444,7 +472,7 @@ class AxTaskIntegration:
         
         try:
             # Batch classify
-            results = self.client.classify_tasks_batch(task_texts)
+            results = self.client.classify_tasks_batch(task_texts, metadata_list=task_metadata_list)
             
             # Update tasks with results
             for task, result in zip(tasks_with_text, results):
@@ -482,17 +510,14 @@ class AxTaskIntegration:
             category = task.get('classification') or task.get('category')
             
             if text and category:
-                nodeweaver_category = normalize_axtask_category(category).lower()
+                nodeweaver_category = normalize_axtask_category(category)
                 training_data.append({
                     'text': text,
                     'category': nodeweaver_category,
-                    'metadata': {
-                        'source': 'axtask_historical',
-                        'target_system': 'axtask',
-                        'classification_profile': 'axtask',
-                        'axtask_id': task.get('id'),
+                    'metadata': build_axtask_metadata({
+                        **self._build_task_metadata(task, source='axtask_historical'),
                         'original_classification': normalize_axtask_category(category)
-                    }
+                    })
                 })
         
         if not training_data:

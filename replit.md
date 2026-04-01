@@ -4,7 +4,7 @@
 
 NodeWeaver is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, NodeWeaver integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
 
-**Version: 1.0.3 - Learning & Classification Enhancement** - NodeWeaver now features sophisticated learning mechanisms with classification correction and training data integration. The system can learn from misclassifications and adapt to domain-specific terminology, with enhanced political/legal category detection for better government meeting classification.
+**Version: 1.0.4 - AxTask Contract Hardening** - NodeWeaver now aligns its first-layer classifier with AxTask's current production contract, including crisis detection, canonical category normalization, and stronger batch metadata handling.
 
 **Live Audio Topic Detection** - NodeWeaver features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
@@ -12,7 +12,14 @@ The system implements a sophisticated architecture where topics emerge from weig
 
 ## Recent Changes (2025-08-04)
 
-### Version 1.0.3 - Learning & Classification Enhancement (Latest)
+### Version 1.0.4 - AxTask Contract Hardening (Latest)
+✓ Added AxTask-compatible `Crisis` category support with emergency/safety keyword prioritization
+✓ Normalized AxTask classifications to canonical labels for classify, batch, correction, and training flows
+✓ Preserved per-task metadata across batch requests for easier reconciliation with AxTask task IDs
+✓ Exposed top alternative categories in AxTask integration metadata for debugging and UX follow-up
+✓ Added focused compatibility tests for crisis routing and historical training setup
+
+### Version 1.0.3 - Learning & Classification Enhancement
 ✓ Added sophisticated learning mechanisms with classification correction and training data integration
 ✓ New /api/v1/correct endpoint to correct misclassifications and learn from them
 ✓ New /api/v1/train endpoint to add labeled training examples for category improvement

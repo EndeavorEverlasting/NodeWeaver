@@ -6,7 +6,14 @@ from utils.validators import validate_classification_input
 from models import ClassificationLog
 from app import db
 from config import Config
-from utils.classification_profiles import build_axtask_metadata, extract_task_text, is_axtask_payload
+from utils.classification_profiles import (
+    build_axtask_metadata,
+    extract_task_text,
+    is_axtask_payload,
+    normalize_profile_category,
+    normalize_profile_result,
+    resolve_classification_profile,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +36,7 @@ def classify_text():
         
         text = extract_task_text(data)
         metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
-        if is_axtask_payload(data):
+        if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
             metadata = build_axtask_metadata(metadata)
         
         # Get RAG engine from app context
@@ -37,6 +44,7 @@ def classify_text():
         
         # Perform classification
         result = rag_engine.classify_text(text, metadata)
+        result = normalize_profile_result(result, metadata)
         
         processing_time = time.time() - start_time
         
@@ -72,8 +80,8 @@ def classify_batch():
         start_time = time.time()
         
         data = request.get_json()
-        if not data or 'texts' not in data:
-            return jsonify({'error': 'No texts array provided'}), 400
+        if not data or ('texts' not in data and 'tasks' not in data):
+            return jsonify({'error': 'Provide either a texts array or a tasks array'}), 400
         
         texts = data.get('texts')
         shared_metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
@@ -94,8 +102,8 @@ def classify_batch():
         if not isinstance(texts, list) or len(texts) == 0:
             return jsonify({'error': 'texts or tasks must be a non-empty array'}), 400
 
-        if isinstance(shared_metadata, dict) and any(key in shared_metadata for key in ('classification_profile', 'target_system', 'source')):
-            shared_metadata = dict(shared_metadata)
+        if resolve_classification_profile(shared_metadata) == 'axtask':
+            shared_metadata = build_axtask_metadata(shared_metadata)
         elif isinstance(data, dict) and 'tasks' in data:
             shared_metadata = build_axtask_metadata(shared_metadata)
         
@@ -116,7 +124,10 @@ def classify_batch():
                     item_metadata = metadata_list[i]
                 elif isinstance(shared_metadata, dict):
                     item_metadata = shared_metadata
+                if resolve_classification_profile(item_metadata) == 'axtask':
+                    item_metadata = build_axtask_metadata(item_metadata)
                 result = rag_engine.classify_text(text, item_metadata)
+                result = normalize_profile_result(result, item_metadata)
                 results.append(result)
             except Exception as e:
                 logger.error(f"Error classifying text at index {i}: {str(e)}")
@@ -143,8 +154,10 @@ def correct_classification():
             return jsonify({'error': 'Missing text or correct_category in request'}), 400
         
         text = data['text'].strip()
-        correct_category = data['correct_category'].strip().lower()
-        metadata = data.get('metadata', {})
+        metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
+        if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
+            metadata = build_axtask_metadata(metadata)
+        correct_category = normalize_profile_category(data['correct_category'], metadata)
         
         if not text:
             return jsonify({'error': 'Empty text provided'}), 400
@@ -176,7 +189,8 @@ def correct_classification():
 @classifier_bp.route('/categories', methods=['GET'])
 def get_categories():
     """Get available classification categories"""
-    profile = request.args.get('profile')
+    requested_profile = request.args.get('profile')
+    profile = resolve_classification_profile({'classification_profile': requested_profile})
     categories = Config.get_categories(profile)
     return jsonify({
         'categories': categories,
@@ -200,10 +214,13 @@ def train_classifier():
             for item in training_data:
                 if 'text' not in item or 'category' not in item:
                     continue
+                item_metadata = item.get('metadata', {}) if isinstance(item.get('metadata'), dict) else {}
+                if resolve_classification_profile(item_metadata) == 'axtask':
+                    item_metadata = build_axtask_metadata(item_metadata)
                 rag_engine.add_training_data(
                     item['text'].strip(),
-                    item['category'].strip(),
-                    item.get('metadata', {}),
+                    normalize_profile_category(item['category'], item_metadata),
+                    item_metadata,
                 )
                 processed += 1
 
@@ -218,8 +235,10 @@ def train_classifier():
             return jsonify({'error': 'Missing text or category in request'}), 400
 
         text = data['text'].strip()
-        category = data['category'].strip()
-        metadata = data.get('metadata', {})
+        metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
+        if is_axtask_payload(data) or resolve_classification_profile(metadata) == 'axtask':
+            metadata = build_axtask_metadata(metadata)
+        category = normalize_profile_category(data['category'], metadata)
 
         if not text:
             return jsonify({'error': 'Empty text provided'}), 400
