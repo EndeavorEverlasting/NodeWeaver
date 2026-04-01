@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - AxTask documentation examples that still showed generic categories or outdated client usage
 - Install instructions and environment examples that still referenced stale TopicSense-era values
+- AxTask client training requests no longer overwrite caller-provided metadata sources such as `axtask_historical`, and they avoid mutating the caller's training payload in place
 
 ## [1.0.4] - 2026-04-01
 

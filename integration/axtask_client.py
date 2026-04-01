@@ -265,17 +265,17 @@ class NodeWeaverAxTaskClient:
             if not isinstance(item, dict) or 'text' not in item or 'category' not in item:
                 raise ValueError(f"Training item {i} must have 'text' and 'category' fields")
         
-        # Add AxTask metadata
+        # Add AxTask metadata without mutating caller-provided training data.
+        normalized_training_data = []
         for item in training_data:
-            if 'metadata' not in item:
-                item['metadata'] = {}
-            item['metadata']['source'] = 'axtask'
-            item['metadata']['target_system'] = 'axtask'
-            item['metadata']['classification_profile'] = 'axtask'
+            request_item = dict(item)
+            request_metadata = item.get('metadata', {}) if isinstance(item.get('metadata'), dict) else {}
+            request_item['metadata'] = build_axtask_metadata(dict(request_metadata))
+            normalized_training_data.append(request_item)
         
         logger.info(f"Training NodeWeaver with {len(training_data)} AxTask examples...")
         
-        response = self._make_request('/train', method='POST', data={'training_data': training_data})
+        response = self._make_request('/train', method='POST', data={'training_data': normalized_training_data})
         
         logger.info(f"Training completed: {response.get('message', 'Success')}")
         

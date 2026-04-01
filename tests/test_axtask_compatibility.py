@@ -135,6 +135,23 @@ class AxTaskCompatibilityTests(unittest.TestCase):
         self.assertEqual(payload['metadata_list'][0]['axtask_id'], 11)
         self.assertEqual(payload['metadata_list'][0]['classification_profile'], 'axtask')
 
+    def test_client_training_preserves_existing_metadata_source_without_mutation(self):
+        client = RecordingClient(api_url='http://nodeweaver.test')
+        training_data = [{
+            'text': 'Review evacuation checklist',
+            'category': 'Crisis',
+            'metadata': {'source': 'axtask_historical', 'axtask_id': 7},
+        }]
+
+        client.train_with_tasks(training_data)
+        request_item = client.last_request['data']['training_data'][0]
+
+        self.assertEqual(request_item['metadata']['source'], 'axtask_historical')
+        self.assertEqual(request_item['metadata']['target_system'], 'axtask')
+        self.assertEqual(request_item['metadata']['classification_profile'], 'axtask')
+        self.assertEqual(request_item['metadata']['axtask_id'], 7)
+        self.assertEqual(training_data[0]['metadata'], {'source': 'axtask_historical', 'axtask_id': 7})
+
     def test_integration_maps_legacy_categories_to_axtask(self):
         classifier = StubClassifier()
         integration = AxTaskIntegration(nodeweaver_client=classifier)
