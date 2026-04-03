@@ -22,6 +22,26 @@ pip install -e . && python main.py
 
 **📖** New here? Check out our [Getting Started Guide](GETTING_STARTED.md)
 
+### Auto-sync dependencies after pull
+
+To keep dependencies aligned automatically on each workstation after `git pull`:
+
+```bash
+git config core.hooksPath .githooks
+```
+
+When dependency files change (`pyproject.toml`, `uv.lock`, or requirements files), the repo `post-merge` hook now runs:
+
+```bash
+python scripts/sync_dependencies.py --with-dev
+```
+
+Manual fallback (any time):
+
+```bash
+python scripts/sync_dependencies.py --with-dev
+```
+
 ## 🚀 Features
 
 ### Core Capabilities
