@@ -64,6 +64,7 @@ NodeWeaver uses a sophisticated multi-layer architecture:
 - **[Deployment Migration Plan](docs/DEPLOYMENT_MIGRATION_PLAN.md)** - 48-hour cutover and rollback guardrails
 - **[Next Setup Blueprint](docs/NEXT_SETUP_BLUEPRINT.md)** - host/DB/domain baseline and integration milestones
 - **[Cutover Runbook](docs/CUTOVER_RUNBOOK.md)** - zero-downtime publish with Replit fallback
+- **[Branding and Deployment Modularity](docs/BRANDING.md)** - Logo paths and host-pivot runtime controls
 
 ## 🚢 Deployment Direction
 
