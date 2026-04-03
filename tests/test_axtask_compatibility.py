@@ -8,7 +8,13 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 from integration.axtask_client import AxTaskIntegration, ClassificationResult, NodeWeaverAxTaskClient
-from utils.classification_profiles import extract_task_text, predict_axtask_categories
+from utils.classification_profiles import (
+    attach_hidden_nodeweaver_signals,
+    detect_input_kind,
+    extract_task_text,
+    infer_hidden_mood,
+    predict_axtask_categories,
+)
 from utils.validators import validate_classification_input
 
 
@@ -52,6 +58,23 @@ class AxTaskCompatibilityTests(unittest.TestCase):
     def test_predict_axtask_categories_returns_canonical_labels(self):
         results = predict_axtask_categories('Fix backend API bug and deploy release')
         self.assertEqual(results[0]['category'], 'Development')
+
+    def test_hidden_mood_detection_handles_feedback_and_urgency(self):
+        self.assertEqual(detect_input_kind({'feedback': 'This release was rough'}), 'feedback')
+        mood = infer_hidden_mood('This is broken and urgent, fix now!', input_kind='feedback')
+        self.assertIn(mood['mood'], {'frustrated', 'urgent'})
+        self.assertGreaterEqual(mood['confidence'], 0.55)
+
+    def test_attach_hidden_nodeweaver_signals_keeps_metadata_private(self):
+        metadata = attach_hidden_nodeweaver_signals(
+            text='Great work on this fix, thanks!',
+            metadata={'source': 'axtask'},
+            payload={'feedback': 'Great work on this fix, thanks!'},
+        )
+        self.assertEqual(metadata['source'], 'axtask')
+        self.assertIn('_nodeweaver_internal', metadata)
+        self.assertEqual(metadata['_nodeweaver_internal']['input_kind'], 'feedback')
+        self.assertIn(metadata['_nodeweaver_internal']['mood'], {'appreciative', 'neutral'})
 
     def test_client_classify_task_adds_axtask_metadata(self):
         client = RecordingClient(api_url='http://nodeweaver.test')

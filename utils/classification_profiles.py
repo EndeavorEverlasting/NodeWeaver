@@ -47,6 +47,14 @@ _AXTASK_KEYWORDS = {
     'Administrative': ['admin', 'approve', 'compliance', 'confirm', 'contract', 'coordination', 'document', 'email', 'follow-up', 'followup', 'invoice', 'paperwork', 'report', 'sign', 'submit'],
 }
 
+_MOOD_KEYWORDS = {
+    'appreciative': ['awesome', 'excellent', 'good', 'great', 'happy', 'impressed', 'love', 'nice', 'perfect', 'solid', 'thanks', 'wonderful'],
+    'concerned': ['concern', 'difficult', 'issue', 'maybe', 'risky', 'unclear', 'unsure', 'worry'],
+    'frustrated': ['annoying', 'bad', 'broken', 'fail', 'frustrated', 'hate', 'problem', 'stuck', 'terrible', 'wrong'],
+    'urgent': ['asap', 'critical', 'immediately', 'now', 'priority', 'rush', 'soon', 'today', 'urgent'],
+}
+_INPUT_KINDS = {'expression', 'feedback', 'task'}
+
 
 def resolve_classification_profile(metadata: Optional[Dict[str, Any]] = None) -> str:
     """Resolve the classification profile from request metadata."""
@@ -134,3 +142,71 @@ def predict_axtask_categories(text: str) -> List[Dict[str, Any]]:
 
     results.sort(key=lambda item: (item['confidence'], item['keyword_matches']), reverse=True)
     return results
+
+
+def detect_input_kind(payload: Optional[Dict[str, Any]] = None, metadata: Optional[Dict[str, Any]] = None) -> str:
+    """Infer whether the payload is an expression, feedback entry, or task."""
+    if isinstance(metadata, dict):
+        metadata_kind = str(metadata.get('input_kind', '')).strip().lower()
+        if metadata_kind in _INPUT_KINDS:
+            return metadata_kind
+
+    if isinstance(payload, dict):
+        lowered_keys = {str(key).strip().lower() for key in payload.keys()}
+        if {'feedback', 'review', 'rating', 'comment'} & lowered_keys:
+            return 'feedback'
+        if {'activity', 'prerequisites', 'task', 'todo', 'title', 'description', 'deadline', 'due_date'} & lowered_keys:
+            return 'task'
+
+    return 'expression'
+
+
+def infer_hidden_mood(text: str, input_kind: str = 'expression') -> Dict[str, Any]:
+    """Infer a lightweight mood signal used only for internal classification cues."""
+    text_lower = (text or '').lower().strip()
+    if not text_lower:
+        return {'mood': 'neutral', 'confidence': 0.2}
+
+    tokens = re.findall(r"[a-z0-9']+", text_lower)
+    token_set = set(tokens)
+    scores = {mood: 0 for mood in _MOOD_KEYWORDS}
+    for mood, keywords in _MOOD_KEYWORDS.items():
+        for keyword in keywords:
+            if (' ' in keyword and keyword in text_lower) or keyword in token_set:
+                scores[mood] += 1
+
+    punctuation_boost = text_lower.count('!') + text_lower.count('??')
+    if punctuation_boost:
+        scores['urgent'] += punctuation_boost
+    if input_kind == 'feedback' and ('not ' in text_lower or "didn't" in text_lower):
+        scores['frustrated'] += 1
+
+    top_mood = max(scores, key=scores.get)
+    top_score = scores[top_mood]
+    if top_score <= 0:
+        return {'mood': 'neutral', 'confidence': 0.35}
+
+    confidence = min(0.96, 0.55 + top_score * 0.1)
+    return {'mood': top_mood, 'confidence': confidence}
+
+
+def attach_hidden_nodeweaver_signals(
+    text: str,
+    metadata: Optional[Dict[str, Any]] = None,
+    payload: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Attach hidden NodeWeaver-only signal metadata for downstream classification."""
+    merged_metadata = dict(metadata or {})
+    input_kind = detect_input_kind(payload=payload, metadata=merged_metadata)
+    mood = infer_hidden_mood(text, input_kind=input_kind)
+
+    existing_internal = merged_metadata.get('_nodeweaver_internal')
+    internal = dict(existing_internal) if isinstance(existing_internal, dict) else {}
+    internal.update({
+        'input_kind': input_kind,
+        'mood': mood['mood'],
+        'mood_confidence': mood['confidence'],
+        'signal_version': 'nw-secret-mood-v1',
+    })
+    merged_metadata['_nodeweaver_internal'] = internal
+    return merged_metadata
