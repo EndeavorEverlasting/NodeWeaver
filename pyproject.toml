@@ -37,6 +37,11 @@ dependencies = [
     "webrtcvad",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+]
+
 [[tool.uv.index]]
 explicit = true
 name = "pytorch-cpu"
