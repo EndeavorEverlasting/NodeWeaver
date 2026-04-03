@@ -126,6 +126,21 @@ pre code {
     font-size: 1.5rem;
 }
 
+.brand-logo {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 0.25rem;
+    object-fit: cover;
+}
+
+.hero-logo {
+    width: 3rem;
+    height: 3rem;
+    border-radius: 0.4rem;
+    object-fit: cover;
+    vertical-align: middle;
+}
+
 .navbar-nav .nav-link {
     font-weight: 500;
     transition: color 0.2s ease-in-out;

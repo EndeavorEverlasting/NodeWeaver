@@ -59,3 +59,21 @@ pip install -e . && python main.py
 
 NodeWeaver uses a sophisticated multi-layer architecture:
 
+## 📚 Documentation
+
+- **[Deployment Migration Plan](docs/DEPLOYMENT_MIGRATION_PLAN.md)** - 48-hour cutover and rollback guardrails
+- **[Next Setup Blueprint](docs/NEXT_SETUP_BLUEPRINT.md)** - host/DB/domain baseline and integration milestones
+- **[Cutover Runbook](docs/CUTOVER_RUNBOOK.md)** - zero-downtime publish with Replit fallback
+
+## 🚢 Deployment Direction
+
+Supports Replit fallback plus self-managed/hosted deployments.  
+For migration planning off Replit with budget and uptime guardrails, use [`docs/DEPLOYMENT_MIGRATION_PLAN.md`](docs/DEPLOYMENT_MIGRATION_PLAN.md).
+
+## 🔒 Security Dependency Policy
+
+- Do not add, invoke, or rely on `axios` in NodeWeaver integration/tooling flows.
+- Prefer Python-native HTTP clients already approved for this stack.
+- Treat any `axios` introduction in adjacent JS/TS glue code as a security-blocking change.
+- Local enforcement: enable hooks with `git config core.hooksPath .githooks`, then run `python scripts/check_no_axios.py` (or `py -3 scripts/check_no_axios.py` on Windows).
+

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}NodeWeaver - RAG Classifier API{% endblock %}</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='img/favicon.png') }}">
     <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
@@ -12,7 +13,7 @@
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('index') }}">
-                <i class="fas fa-brain me-2"></i>NodeWeaver
+                <img src="{{ url_for('static', filename='img/nodeweaver-logo.png') }}" alt="NodeWeaver logo" class="brand-logo me-2">NodeWeaver
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
@@ -50,7 +51,7 @@
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <h5><i class="fas fa-brain me-2"></i>NodeWeaver</h5>
+                    <h5><img src="{{ url_for('static', filename='img/nodeweaver-logo.png') }}" alt="NodeWeaver logo" class="brand-logo me-2">NodeWeaver</h5>
                     <p class="mb-0">Intelligent task categorization through RAG technology</p>
                 </div>
                 <div class="col-md-6 text-md-end">

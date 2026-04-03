@@ -9,6 +9,14 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
+
+def get_runtime_settings():
+    env = os.environ.get("FLASK_ENV", "").strip().lower()
+    debug_env = os.environ.get("FLASK_DEBUG", "").strip().lower()
+    debug = debug_env in ("1", "true", "yes", "on") or env == "development"
+    port = int(os.environ.get("PORT", "5000"))
+    return {"debug": debug, "port": port}
+
 class Base(DeclarativeBase):
     pass
 
@@ -124,4 +132,5 @@ def create_app():
 app = create_app()
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    runtime = get_runtime_settings()
+    app.run(host='0.0.0.0', port=runtime["port"], debug=runtime["debug"])
