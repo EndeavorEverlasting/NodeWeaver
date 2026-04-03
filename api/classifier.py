@@ -6,7 +6,12 @@ from utils.validators import validate_classification_input
 from models import ClassificationLog
 from app import db
 from config import Config
-from utils.classification_profiles import build_axtask_metadata, extract_task_text, is_axtask_payload
+from utils.classification_profiles import (
+    attach_hidden_nodeweaver_signals,
+    build_axtask_metadata,
+    extract_task_text,
+    is_axtask_payload,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,6 +36,7 @@ def classify_text():
         metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
         if is_axtask_payload(data):
             metadata = build_axtask_metadata(metadata)
+        metadata = attach_hidden_nodeweaver_signals(text=text, metadata=metadata, payload=data)
         
         # Get classification pipeline from app context
         pipeline = current_app.extensions.get('classification_pipeline')
@@ -86,10 +92,12 @@ def classify_batch():
         texts = data.get('texts')
         shared_metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
         metadata_list = data.get('metadata_list')
+        payload_list = None
 
         if texts is None and isinstance(data.get('tasks'), list):
             texts = []
             metadata_list = []
+            payload_list = []
             for task in data['tasks']:
                 task_text = extract_task_text(task)
                 if task_text:
@@ -98,6 +106,7 @@ def classify_batch():
                     if is_axtask_payload(task):
                         task_metadata = build_axtask_metadata(task_metadata)
                     metadata_list.append(task_metadata)
+                    payload_list.append(task)
 
         if not isinstance(texts, list) or len(texts) == 0:
             return jsonify({'error': 'texts or tasks must be a non-empty array'}), 400
@@ -125,6 +134,14 @@ def classify_batch():
                     item_metadata = metadata_list[i]
                 elif isinstance(shared_metadata, dict):
                     item_metadata = shared_metadata
+                payload_context = None
+                if isinstance(payload_list, list) and i < len(payload_list):
+                    payload_context = payload_list[i]
+                item_metadata = attach_hidden_nodeweaver_signals(
+                    text=text,
+                    metadata=item_metadata,
+                    payload=payload_context or {'text': text},
+                )
                 if pipeline is not None:
                     result = pipeline.classify(text, item_metadata)
                 else:

@@ -92,7 +92,7 @@ class SimpleRAGEngine:
     def _predict_categories_multi(self, text: str, metadata: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
         """Multi-label classification - return all matching categories with confidence scores"""
         if resolve_classification_profile(metadata) == 'axtask':
-            return predict_axtask_categories(text)
+            return self._apply_hidden_mood_bias(predict_axtask_categories(text), metadata)
 
         text_lower = text.lower().strip()
         categories = []
@@ -168,6 +168,47 @@ class SimpleRAGEngine:
                 'keyword_matches': 0
             })
         
+        return self._apply_hidden_mood_bias(categories, metadata)
+
+    def _apply_hidden_mood_bias(
+        self,
+        categories: List[Dict[str, Any]],
+        metadata: Optional[Dict[str, Any]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Apply small internal confidence nudges from hidden mood signals."""
+        if not categories:
+            return categories
+        if not isinstance(metadata, dict):
+            return categories
+
+        internal = metadata.get('_nodeweaver_internal')
+        if not isinstance(internal, dict):
+            return categories
+
+        mood = str(internal.get('mood', '')).lower()
+        input_kind = str(internal.get('input_kind', '')).lower()
+        if not mood:
+            return categories
+
+        adjustments = {}
+        if input_kind == 'task' and mood == 'urgent':
+            adjustments = {'development': 0.04, 'maintenance': 0.04, 'work': 0.03, 'technology': 0.03}
+        elif input_kind == 'feedback' and mood in {'frustrated', 'concerned'}:
+            adjustments = {'maintenance': 0.06, 'administrative': 0.03, 'work': 0.03}
+        elif input_kind == 'feedback' and mood == 'appreciative':
+            adjustments = {'administrative': 0.03, 'work': 0.02}
+        elif input_kind == 'expression' and mood == 'appreciative':
+            adjustments = {'personal': 0.04, 'general': 0.02}
+
+        if not adjustments:
+            return categories
+
+        for item in categories:
+            category_key = str(item.get('category', '')).strip().lower()
+            if category_key in adjustments:
+                item['confidence'] = min(0.98, float(item.get('confidence', 0.0)) + adjustments[category_key])
+
+        categories.sort(key=lambda x: x['confidence'], reverse=True)
         return categories
     
     def get_topics(self, limit: int = 10) -> List[Dict]:
