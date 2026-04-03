@@ -24,16 +24,14 @@ pip install -e . && python main.py
 
 ### Auto-sync dependencies after pull
 
-To keep dependencies aligned automatically on each workstation after `git pull`:
+Think of this like turning on auto-help once.
 
-```bash
-git config core.hooksPath .githooks
-```
-
-Non-technical users can run one-click setup from the repo root:
-
-- Windows: double-click [`setup-hooks.cmd`](setup-hooks.cmd)
-- macOS/Linux: run [`setup-hooks.sh`](setup-hooks.sh)
+1. Click one file one time:
+   - Windows: double-click [`setup-hooks.cmd`](setup-hooks.cmd)
+   - macOS/Linux: run [`setup-hooks.sh`](setup-hooks.sh)
+2. That setup automatically does:
+   - `git config core.hooksPath .githooks`
+   - dependency sync
 
 When dependency files change (`pyproject.toml`, `uv.lock`, or requirements files), the repo `post-merge` hook now runs:
 
