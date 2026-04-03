@@ -54,6 +54,13 @@ pip install -e . && python main.py
 - **Meeting & Debate Topic Tracking**: Continuously identify when participants change topics, dwell on specific ones, or diverge into tangents. Useful for meeting summarization, political discourse analysis, and podcast breakdowns.
 - **Logical Fallacy Heuristics**: Infer topic shifts that defy internal consistency, helping flag potential red herrings, strawman arguments, or non sequiturs. This is built on the foundation of graph-weight discontinuities or abrupt semantic distance jumps between nodes.
 - **Temporal Topic Heatmaps**: Visualize which topics dominate in a time window and how they evolve across sessions. Ideal for trend analysis or longitudinal research.
+- **Premium Replay + Drift APIs**: Classification replay history and confidence-drift alerts for retention workflows with AxTask bundle automations.
+
+### Premium Classifier Endpoints
+- `POST /api/v1/classify/replay` — Replay classifications against previous outcomes and persist drift deltas.
+- `GET /api/v1/classify/replay/history` — Fetch replay history (optionally filtered by `task_ref`).
+- `GET /api/v1/classify/drift-alerts` — List open/resolved confidence drift alerts.
+- `POST /api/v1/classify/drift-alerts/<alert_id>/resolve` — Resolve a drift alert after review.
 
 ## 🏗️ Architecture
 

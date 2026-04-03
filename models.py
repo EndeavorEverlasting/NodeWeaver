@@ -112,3 +112,65 @@ class ClassificationLog(db.Model):
             'metadata': self.meta_data,
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
+
+class ClassificationReplay(db.Model):
+    __tablename__ = 'classification_replays'
+
+    replay_id = db.Column(Integer, primary_key=True)
+    task_ref = db.Column(db.String(128), nullable=False)
+    input_text = db.Column(Text, nullable=False)
+    previous_category = db.Column(db.String(100))
+    previous_confidence = db.Column(Float)
+    new_category = db.Column(db.String(100), nullable=False)
+    new_confidence = db.Column(Float)
+    confidence_delta = db.Column(Float, default=0.0)
+    changed = db.Column(db.Boolean, default=False)
+    source = db.Column(db.String(50), default='manual')
+    meta_data = db.Column(JSON, default=dict)
+    created_at = db.Column(DateTime, default=datetime.datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'replay_id': self.replay_id,
+            'task_ref': self.task_ref,
+            'input_text': self.input_text,
+            'previous_category': self.previous_category,
+            'previous_confidence': self.previous_confidence,
+            'new_category': self.new_category,
+            'new_confidence': self.new_confidence,
+            'confidence_delta': self.confidence_delta,
+            'changed': self.changed,
+            'source': self.source,
+            'metadata': self.meta_data,
+            'created_at': self.created_at.isoformat() if self.created_at else None
+        }
+
+class ConfidenceDriftAlert(db.Model):
+    __tablename__ = 'confidence_drift_alerts'
+
+    alert_id = db.Column(Integer, primary_key=True)
+    task_ref = db.Column(db.String(128), nullable=False)
+    previous_confidence = db.Column(Float, nullable=False)
+    new_confidence = db.Column(Float, nullable=False)
+    threshold = db.Column(Float, nullable=False, default=0.45)
+    severity = db.Column(db.String(20), default='high')
+    status = db.Column(db.String(20), default='open')
+    reason = db.Column(Text)
+    meta_data = db.Column(JSON, default=dict)
+    created_at = db.Column(DateTime, default=datetime.datetime.utcnow)
+    resolved_at = db.Column(DateTime)
+
+    def to_dict(self):
+        return {
+            'alert_id': self.alert_id,
+            'task_ref': self.task_ref,
+            'previous_confidence': self.previous_confidence,
+            'new_confidence': self.new_confidence,
+            'threshold': self.threshold,
+            'severity': self.severity,
+            'status': self.status,
+            'reason': self.reason,
+            'metadata': self.meta_data,
+            'created_at': self.created_at.isoformat() if self.created_at else None,
+            'resolved_at': self.resolved_at.isoformat() if self.resolved_at else None
+        }

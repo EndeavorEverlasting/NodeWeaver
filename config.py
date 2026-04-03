@@ -29,6 +29,7 @@ class Config:
     API_VERSION = 'v1'
     APP_VERSION = '1.0.5'
     MAX_INPUT_LENGTH = int(os.environ.get('MAX_INPUT_LENGTH', '10000'))
+    PREMIUM_DRIFT_THRESHOLD = float(os.environ.get('PREMIUM_DRIFT_THRESHOLD', '0.45'))
     
     # Logging configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')

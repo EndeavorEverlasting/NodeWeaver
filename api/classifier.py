@@ -3,7 +3,7 @@ import time
 import logging
 from copy import deepcopy
 from utils.validators import validate_classification_input
-from models import ClassificationLog
+from models import ClassificationLog, ClassificationReplay, ConfidenceDriftAlert
 from app import db
 from config import Config
 from utils.classification_profiles import (
@@ -18,6 +18,52 @@ from utils.classification_profiles import (
 logger = logging.getLogger(__name__)
 
 classifier_bp = Blueprint('classifier', __name__)
+
+def _register_replay_entry(task_ref, text, previous, current, source, metadata, threshold):
+    previous_category = previous.get('predicted_category') if isinstance(previous, dict) else None
+    previous_confidence = previous.get('confidence_score') if isinstance(previous, dict) else None
+    new_category = current.get('predicted_category')
+    new_confidence = current.get('confidence_score')
+    confidence_delta = 0.0
+    if isinstance(previous_confidence, (int, float)) and isinstance(new_confidence, (int, float)):
+        confidence_delta = float(new_confidence) - float(previous_confidence)
+
+    replay = ClassificationReplay(
+        task_ref=str(task_ref),
+        input_text=text,
+        previous_category=previous_category,
+        previous_confidence=previous_confidence,
+        new_category=new_category,
+        new_confidence=new_confidence,
+        confidence_delta=confidence_delta,
+        changed=previous_category != new_category,
+        source=source or 'manual',
+        meta_data=metadata or {},
+    )
+    db.session.add(replay)
+
+    drift_triggered = (
+        isinstance(new_confidence, (int, float))
+        and new_confidence < threshold
+        and isinstance(previous_confidence, (int, float))
+        and (previous_confidence - new_confidence) >= 0.10
+    )
+    created_alert = None
+    if drift_triggered:
+        created_alert = ConfidenceDriftAlert(
+            task_ref=str(task_ref),
+            previous_confidence=float(previous_confidence),
+            new_confidence=float(new_confidence),
+            threshold=float(threshold),
+            severity='high',
+            status='open',
+            reason='Confidence dropped below threshold with significant delta.',
+            meta_data=metadata or {},
+        )
+        db.session.add(created_alert)
+
+    db.session.commit()
+    return replay, created_alert
 
 @classifier_bp.route('/classify', methods=['POST'])
 def classify_text():
@@ -144,6 +190,117 @@ def classify_batch():
     except Exception as e:
         logger.error(f"Batch classification error: {str(e)}")
         return jsonify({'error': 'Batch classification failed', 'details': str(e)}), 500
+
+@classifier_bp.route('/classify/replay', methods=['POST'])
+def classify_replay():
+    """Replay classifications and track label/confidence drift."""
+    try:
+        data = request.get_json()
+        if not data or not isinstance(data.get('items'), list):
+            return jsonify({'error': 'items array is required'}), 400
+
+        items = data.get('items', [])
+        if len(items) == 0:
+            return jsonify({'error': 'items must not be empty'}), 400
+        if len(items) > 100:
+            return jsonify({'error': 'items is limited to 100'}), 400
+
+        threshold = float(data.get('drift_threshold', 0.45))
+        threshold = max(0.05, min(0.95, threshold))
+        rag_engine = current_app.extensions['rag_engine']
+
+        replays = []
+        alerts = []
+        for index, item in enumerate(items):
+            text = extract_task_text(item)
+            if not text:
+                replays.append({'index': index, 'error': 'empty text'})
+                continue
+            metadata = deepcopy(item.get('metadata', {})) if isinstance(item.get('metadata'), dict) else {}
+            if is_axtask_payload(item) or resolve_classification_profile(metadata) == 'axtask':
+                metadata = build_axtask_metadata(metadata, payload=item)
+
+            previous = item.get('previous_result', {}) if isinstance(item.get('previous_result'), dict) else {}
+            task_ref = item.get('task_ref') or item.get('id') or f'item-{index}'
+            source = item.get('source', 'manual')
+
+            current = rag_engine.classify_text(text, metadata)
+            current = normalize_profile_result(current, metadata)
+            replay_row, alert_row = _register_replay_entry(task_ref, text, previous, current, source, metadata, threshold)
+            replay_payload = replay_row.to_dict()
+            replay_payload['current_result'] = current
+            replays.append(replay_payload)
+            if alert_row:
+                alerts.append(alert_row.to_dict())
+
+        return jsonify({
+            'replays': replays,
+            'alerts': alerts,
+            'threshold': threshold,
+            'processed': len(replays),
+            'alerts_created': len(alerts),
+        })
+    except Exception as e:
+        logger.error(f"Replay classification error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Replay classification failed', 'details': str(e)}), 500
+
+@classifier_bp.route('/classify/replay/history', methods=['GET'])
+def classification_replay_history():
+    """Return replay history for premium drift/audit views."""
+    try:
+        task_ref = request.args.get('task_ref')
+        limit = min(request.args.get('limit', 50, type=int), 200)
+        query = ClassificationReplay.query.order_by(ClassificationReplay.created_at.desc())
+        if task_ref:
+            query = query.filter_by(task_ref=task_ref)
+        rows = query.limit(limit).all()
+        return jsonify({
+            'history': [row.to_dict() for row in rows],
+            'total': len(rows),
+            'task_ref': task_ref,
+        })
+    except Exception as e:
+        logger.error(f"Replay history error: {str(e)}")
+        return jsonify({'error': 'Failed to fetch replay history', 'details': str(e)}), 500
+
+@classifier_bp.route('/classify/drift-alerts', methods=['GET'])
+def list_drift_alerts():
+    """List confidence drift alerts."""
+    try:
+        status = request.args.get('status', 'open')
+        limit = min(request.args.get('limit', 50, type=int), 200)
+        query = ConfidenceDriftAlert.query.order_by(ConfidenceDriftAlert.created_at.desc())
+        if status in ('open', 'resolved'):
+            query = query.filter_by(status=status)
+        task_ref = request.args.get('task_ref')
+        if task_ref:
+            query = query.filter_by(task_ref=task_ref)
+        rows = query.limit(limit).all()
+        return jsonify({
+            'alerts': [row.to_dict() for row in rows],
+            'total': len(rows),
+        })
+    except Exception as e:
+        logger.error(f"Drift alerts list error: {str(e)}")
+        return jsonify({'error': 'Failed to fetch drift alerts', 'details': str(e)}), 500
+
+@classifier_bp.route('/classify/drift-alerts/<int:alert_id>/resolve', methods=['POST'])
+def resolve_drift_alert(alert_id):
+    """Resolve a confidence drift alert."""
+    try:
+        alert = ConfidenceDriftAlert.query.get(alert_id)
+        if not alert:
+            return jsonify({'error': 'Alert not found'}), 404
+        alert.status = 'resolved'
+        from datetime import datetime
+        alert.resolved_at = datetime.utcnow()
+        db.session.commit()
+        return jsonify({'success': True, 'alert': alert.to_dict()})
+    except Exception as e:
+        logger.error(f"Resolve drift alert error: {str(e)}")
+        db.session.rollback()
+        return jsonify({'error': 'Failed to resolve alert', 'details': str(e)}), 500
 
 @classifier_bp.route('/correct', methods=['POST'])
 def correct_classification():
