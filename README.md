@@ -30,6 +30,11 @@ To keep dependencies aligned automatically on each workstation after `git pull`:
 git config core.hooksPath .githooks
 ```
 
+Non-technical users can run one-click setup from the repo root:
+
+- Windows: double-click [`setup-hooks.cmd`](setup-hooks.cmd)
+- macOS/Linux: run [`setup-hooks.sh`](setup-hooks.sh)
+
 When dependency files change (`pyproject.toml`, `uv.lock`, or requirements files), the repo `post-merge` hook now runs:
 
 ```bash
@@ -41,6 +46,8 @@ Manual fallback (any time):
 ```bash
 python scripts/sync_dependencies.py --with-dev
 ```
+
+NodeWeaver is Python-first and does not require Node.js/npm for dependency management.
 
 ## 🚀 Features
 
