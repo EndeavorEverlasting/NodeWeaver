@@ -199,6 +199,12 @@ class SimpleRAGEngine:
             adjustments = {'administrative': 0.03, 'work': 0.02}
         elif input_kind == 'expression' and mood == 'appreciative':
             adjustments = {'personal': 0.04, 'general': 0.02}
+        elif input_kind == 'forum' and mood in {'frustrated', 'concerned'}:
+            adjustments = {'maintenance': 0.06, 'administrative': 0.04, 'political': 0.03}
+        elif input_kind == 'forum' and mood == 'urgent':
+            adjustments = {'maintenance': 0.07, 'development': 0.04, 'work': 0.03}
+        elif input_kind == 'forum' and mood == 'appreciative':
+            adjustments = {'administrative': 0.03, 'general': 0.03, 'personal': 0.02}
 
         if not adjustments:
             return categories

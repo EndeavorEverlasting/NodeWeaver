@@ -53,7 +53,11 @@ _MOOD_KEYWORDS = {
     'frustrated': ['annoying', 'bad', 'broken', 'fail', 'frustrated', 'hate', 'problem', 'stuck', 'terrible', 'wrong'],
     'urgent': ['asap', 'critical', 'immediately', 'now', 'priority', 'rush', 'soon', 'today', 'urgent'],
 }
-_INPUT_KINDS = {'expression', 'feedback', 'task'}
+_INPUT_KINDS = {'expression', 'feedback', 'task', 'forum'}
+_FORUM_MARKERS = {
+    'source': {'forum', 'community', 'community_forum', 'discourse', 'reddit'},
+    'target_system': {'forum', 'community', 'community_forum'},
+}
 
 
 def resolve_classification_profile(metadata: Optional[Dict[str, Any]] = None) -> str:
@@ -150,9 +154,15 @@ def detect_input_kind(payload: Optional[Dict[str, Any]] = None, metadata: Option
         metadata_kind = str(metadata.get('input_kind', '')).strip().lower()
         if metadata_kind in _INPUT_KINDS:
             return metadata_kind
+        for marker_key, allowed_values in _FORUM_MARKERS.items():
+            marker_value = str(metadata.get(marker_key, '')).strip().lower()
+            if marker_value in allowed_values:
+                return 'forum'
 
     if isinstance(payload, dict):
         lowered_keys = {str(key).strip().lower() for key in payload.keys()}
+        if {'thread', 'reply', 'replies', 'forum_post', 'community_post', 'upvotes', 'downvotes', 'reactions'} & lowered_keys:
+            return 'forum'
         if {'feedback', 'review', 'rating', 'comment'} & lowered_keys:
             return 'feedback'
         if {'activity', 'prerequisites', 'task', 'todo', 'title', 'description', 'deadline', 'due_date'} & lowered_keys:
@@ -161,7 +171,11 @@ def detect_input_kind(payload: Optional[Dict[str, Any]] = None, metadata: Option
     return 'expression'
 
 
-def infer_hidden_mood(text: str, input_kind: str = 'expression') -> Dict[str, Any]:
+def infer_hidden_mood(
+    text: str,
+    input_kind: str = 'expression',
+    signal_boosts: Optional[Dict[str, int]] = None,
+) -> Dict[str, Any]:
     """Infer a lightweight mood signal used only for internal classification cues."""
     text_lower = (text or '').lower().strip()
     if not text_lower:
@@ -180,6 +194,10 @@ def infer_hidden_mood(text: str, input_kind: str = 'expression') -> Dict[str, An
         scores['urgent'] += punctuation_boost
     if input_kind == 'feedback' and ('not ' in text_lower or "didn't" in text_lower):
         scores['frustrated'] += 1
+    if isinstance(signal_boosts, dict):
+        for mood, boost in signal_boosts.items():
+            if mood in scores:
+                scores[mood] += max(0, int(boost))
 
     top_mood = max(scores, key=scores.get)
     top_score = scores[top_mood]
@@ -190,6 +208,53 @@ def infer_hidden_mood(text: str, input_kind: str = 'expression') -> Dict[str, An
     return {'mood': top_mood, 'confidence': confidence}
 
 
+def extract_forum_signal_boosts(
+    payload: Optional[Dict[str, Any]] = None,
+    metadata: Optional[Dict[str, Any]] = None,
+) -> Dict[str, int]:
+    """Extract mood hints from community forum engagement signals."""
+    boosts = {'appreciative': 0, 'concerned': 0, 'frustrated': 0, 'urgent': 0}
+
+    if isinstance(payload, dict):
+        upvotes = payload.get('upvotes')
+        downvotes = payload.get('downvotes')
+        if isinstance(upvotes, int) and upvotes >= 10:
+            boosts['appreciative'] += 1
+        if isinstance(downvotes, int) and downvotes >= 4:
+            boosts['frustrated'] += 1
+            boosts['concerned'] += 1
+
+        reactions = payload.get('reactions')
+        if isinstance(reactions, dict):
+            negative_reaction_count = 0
+            for key, value in reactions.items():
+                if not isinstance(value, int):
+                    continue
+                key_lower = str(key).lower()
+                if key_lower in {'angry', 'downvote', 'thumbs_down', 'confused'} and value > 0:
+                    negative_reaction_count += value
+                elif key_lower in {'heart', 'like', 'thumbs_up'} and value > 0:
+                    boosts['appreciative'] += 1
+            if negative_reaction_count >= 2:
+                boosts['frustrated'] += 1
+
+        hot_words = str(payload.get('tags', '')).lower()
+        if any(term in hot_words for term in ('incident', 'outage', 'breaking', 'urgent', 'help')):
+            boosts['urgent'] += 1
+            boosts['concerned'] += 1
+
+    if isinstance(metadata, dict):
+        thread_health = str(metadata.get('thread_health', '')).strip().lower()
+        if thread_health in {'heated', 'conflict'}:
+            boosts['frustrated'] += 1
+        if thread_health in {'supportive', 'helpful'}:
+            boosts['appreciative'] += 1
+        if str(metadata.get('is_hot_thread', '')).strip().lower() in {'true', '1', 'yes'}:
+            boosts['urgent'] += 1
+
+    return boosts
+
+
 def attach_hidden_nodeweaver_signals(
     text: str,
     metadata: Optional[Dict[str, Any]] = None,
@@ -198,7 +263,8 @@ def attach_hidden_nodeweaver_signals(
     """Attach hidden NodeWeaver-only signal metadata for downstream classification."""
     merged_metadata = dict(metadata or {})
     input_kind = detect_input_kind(payload=payload, metadata=merged_metadata)
-    mood = infer_hidden_mood(text, input_kind=input_kind)
+    forum_boosts = extract_forum_signal_boosts(payload=payload, metadata=merged_metadata) if input_kind == 'forum' else None
+    mood = infer_hidden_mood(text, input_kind=input_kind, signal_boosts=forum_boosts)
 
     existing_internal = merged_metadata.get('_nodeweaver_internal')
     internal = dict(existing_internal) if isinstance(existing_internal, dict) else {}
@@ -208,5 +274,7 @@ def attach_hidden_nodeweaver_signals(
         'mood_confidence': mood['confidence'],
         'signal_version': 'nw-secret-mood-v1',
     })
+    if isinstance(forum_boosts, dict):
+        internal['forum_signal_boosts'] = {key: value for key, value in forum_boosts.items() if value > 0}
     merged_metadata['_nodeweaver_internal'] = internal
     return merged_metadata
