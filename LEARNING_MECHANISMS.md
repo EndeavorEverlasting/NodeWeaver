@@ -234,3 +234,16 @@ Learning data integrates with existing NodeWeaver architecture:
 | `/api/v1/train` | POST | Add training example | `text`, `category` |
 
 All endpoints support metadata for tracking learning context and effectiveness.
+
+## Dynamic Topic Discovery (Next Version)
+
+To help NodeWeaver grow beyond the predefined category set, the next version introduces rules for discovering new topics whenever text is repeatedly classified as **"other"**:
+
+1. **"Other" Frequency Threshold** – track how often similar items are labeled "other". A cluster of related items (e.g., 5 occurrences within 24 hours) triggers a new-topic candidate.
+2. **Semantic Clustering** – embed and group "other" items; dense clusters indicate emerging topics.
+3. **User Validation** – present candidate clusters to an administrator to confirm and name the new category.
+4. **Keyword Bootstrapping** – extract prominent terms from confirmed clusters to seed the category's keyword list.
+5. **Active Re-training** – automatically train on validated examples to raise confidence for the new category.
+6. **Noise Filtering** – ignore candidates unless the "other" classification has a significant confidence gap from existing categories.
+
+These rules encourage continuous learning, allowing the system to evolve as new domains appear.

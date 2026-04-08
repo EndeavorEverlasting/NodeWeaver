@@ -1,5 +1,13 @@
 # NodeWeaver Version History
 
+## Version 1.0.4 (2025-08-07) - Dynamic Topic Discovery
+
+### 🆕 Topic Expansion Rules
+- Monitors "other" classifications to detect emerging themes
+- Clusters unlabeled items and proposes new categories for review
+- Seeds keywords and retrains model once a new category is confirmed
+
+
 ## Version 1.0.2 (2025-08-04) - Multi-Classification Enhancement
 
 ### 🚀 Major Features
