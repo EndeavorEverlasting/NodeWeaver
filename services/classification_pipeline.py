@@ -6,6 +6,7 @@ Layer 3 — Universal Zero-Shot Fallback (HuggingFace zero-shot)
 """
 import json
 import logging
+import threading
 import time
 from typing import Dict, Any, List, Optional, Tuple
 
@@ -25,7 +26,9 @@ class ClassificationPipeline:
 
         self._zs_pipeline = None
         self._zs_loaded = False
+        self._zs_loading = False
         self._zs_available = True
+        self._zs_lock = threading.Lock()
 
         self._category_cache: List[str] = []
         self._category_cache_ts: float = 0.0
@@ -198,33 +201,164 @@ class ClassificationPipeline:
     # Layer 3 — Universal Zero-Shot Classifier
     # ------------------------------------------------------------------
 
-    def _load_zero_shot_pipeline(self) -> bool:
-        """Lazily load the HuggingFace zero-shot pipeline. Returns True on success."""
-        if self._zs_loaded:
-            return self._zs_pipeline is not None
+    @property
+    def zero_shot_status(self) -> str:
+        """Return the current status of the zero-shot model.
 
-        self._zs_loaded = True
-        if not self._zs_available:
-            return False
+        Returns one of: 'ready', 'unavailable', 'loading'.
+        """
+        with self._zs_lock:
+            if self._zs_loading:
+                return 'loading'
+            if self._zs_loaded:
+                return 'ready' if self._zs_pipeline is not None else 'unavailable'
+            return 'loading'
+
+    def validate_zero_shot_model(self) -> bool:
+        """Validate NW_ZS_MODEL at startup via a lightweight HuggingFace Hub lookup.
+
+        Always called at startup regardless of NW_ZS_PRELOAD.  If the model
+        identifier is unreachable or invalid, marks the component unavailable and
+        logs an informative warning so operators can diagnose misconfiguration
+        before any classification request is attempted.
+
+        Tries huggingface_hub.model_info() first; falls back to a stdlib
+        urllib.request GET so no extra package is required.
+
+        Returns True when the model id is reachable, False otherwise.
+        """
+        from config import Config
+        model_name = Config.NW_ZS_MODEL
+        logger.info("Validating zero-shot model '%s' at startup", model_name)
 
         try:
-            import os
+            from huggingface_hub import model_info as hf_model_info
+            hf_model_info(model_name)
+            logger.info(
+                "Zero-shot model '%s' validated — model exists on HuggingFace Hub",
+                model_name,
+            )
+            return True
+        except ImportError:
+            pass  # huggingface_hub not installed; fall through to urllib fallback
+        except Exception as e:
+            logger.warning(
+                "Zero-shot model '%s' could not be validated at startup — "
+                "Layer 3 will be unavailable until the issue is resolved. "
+                "Verify NW_ZS_MODEL is a valid HuggingFace model identifier and "
+                "that the host can reach huggingface.co. Error: %s",
+                model_name, e,
+            )
+            with self._zs_lock:
+                self._zs_loaded = True
+                self._zs_pipeline = None
+                self._zs_available = False
+            return False
+
+        # stdlib fallback: HEAD request to HuggingFace REST API
+        import urllib.request
+        import urllib.error
+        url = f"https://huggingface.co/api/models/{model_name}"
+        try:
+            req = urllib.request.Request(url, method='HEAD')
+            with urllib.request.urlopen(req, timeout=10) as resp:
+                if resp.status == 200:
+                    logger.info(
+                        "Zero-shot model '%s' validated — model exists on HuggingFace Hub",
+                        model_name,
+                    )
+                    return True
+                raise urllib.error.HTTPError(url, resp.status, 'Unexpected status', {}, None)
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                logger.warning(
+                    "Zero-shot model '%s' not found on HuggingFace Hub (HTTP 404) — "
+                    "Layer 3 will be unavailable. "
+                    "Verify the value of NW_ZS_MODEL is a valid model identifier.",
+                    model_name,
+                )
+                with self._zs_lock:
+                    self._zs_loaded = True
+                    self._zs_pipeline = None
+                    self._zs_available = False
+                return False
+            # Non-404 HTTP error (e.g. 429, 503) — model may still exist; warn only
+            logger.warning(
+                "Zero-shot model '%s' validation returned HTTP %s — "
+                "assuming model is available; Layer 3 will attempt to load on first use. "
+                "Error: %s",
+                model_name, e.code, e,
+            )
+            return True
+        except Exception as e:
+            # Network failure (DNS, timeout, etc.) — warn but keep model as potentially available
+            logger.warning(
+                "Zero-shot model '%s' could not be reached during startup validation "
+                "(network error) — assuming model is available; "
+                "Layer 3 will attempt to load on first use. Error: %s",
+                model_name, e,
+            )
+            return True
+
+    def preload_zero_shot(self) -> None:
+        """Eagerly load the zero-shot pipeline.  Call once at startup."""
+        from config import Config
+        model_name = Config.NW_ZS_MODEL
+        logger.info(
+            "NW_ZS_PRELOAD=true — eagerly loading zero-shot model '%s' at startup",
+            model_name,
+        )
+        with self._zs_lock:
+            self._zs_loading = True
+        try:
+            success = self._load_zero_shot_pipeline()
+            if success:
+                logger.info("Zero-shot model '%s' pre-loaded and ready", model_name)
+            else:
+                logger.warning(
+                    "Zero-shot model '%s' could not be pre-loaded — "
+                    "Layer 3 will be unavailable. "
+                    "Check that the model identifier is correct and the "
+                    "'transformers' package is installed.",
+                    model_name,
+                )
+        finally:
+            with self._zs_lock:
+                self._zs_loading = False
+
+    def _load_zero_shot_pipeline(self) -> bool:
+        """Lazily load the HuggingFace zero-shot pipeline. Returns True on success."""
+        with self._zs_lock:
+            if self._zs_loaded:
+                return self._zs_pipeline is not None
+            if not self._zs_available:
+                self._zs_loaded = True
+                return False
+            # Mark loaded=True now so concurrent callers don't start a second load.
+            self._zs_loaded = True
+
+        # Do the heavy I/O outside the lock so the status property isn't blocked.
+        try:
             from transformers import pipeline as hf_pipeline
-            model_name = os.environ.get('NW_ZS_MODEL', 'cross-encoder/nli-deberta-v3-small')
+            from config import Config
+            model_name = Config.NW_ZS_MODEL
             logger.info("Loading zero-shot model: %s", model_name)
-            self._zs_pipeline = hf_pipeline(
+            zs_pipe = hf_pipeline(
                 'zero-shot-classification',
                 model=model_name,
                 device=-1,
             )
+            with self._zs_lock:
+                self._zs_pipeline = zs_pipe
             logger.info("Zero-shot model loaded successfully")
             return True
         except Exception as e:
             logger.warning(
                 "Zero-shot model could not be loaded — Layer 3 will be skipped: %s", e
             )
-            self._zs_pipeline = None
-            self._zs_available = False
+            with self._zs_lock:
+                self._zs_pipeline = None
+                self._zs_available = False
             return False
 
     def _universal_classify(self, text: str) -> Tuple[str, float]:

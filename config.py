@@ -37,6 +37,8 @@ class Config:
 
     # Zero-shot model override (Layer 3)
     NW_ZS_MODEL = os.environ.get('NW_ZS_MODEL', 'cross-encoder/nli-deberta-v3-small')
+    # Eagerly download and load the zero-shot model at startup when set to true
+    NW_ZS_PRELOAD = os.environ.get('NW_ZS_PRELOAD', 'false').strip().lower() in ('1', 'true', 'yes')
 
     # AxTask integration — NodeWeaver side
     NODEWEAVER_API_KEY = os.environ.get('NODEWEAVER_API_KEY')

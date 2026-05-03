@@ -48,9 +48,10 @@ NodeWeaver uses a three-layer classification pipeline for every `/api/v1/classif
 |---|---|---|
 | `NW_L1_CONFIDENCE_THRESHOLD` | `0.7` | Minimum confidence for Layer 1 result to be accepted |
 | `NW_L2_CONFIDENCE_THRESHOLD` | `0.55` | Minimum confidence for Layer 2 result to be accepted |
-| `NW_ZS_MODEL` | `cross-encoder/nli-deberta-v3-small` | HuggingFace model used by Layer 3 |
+| `NW_ZS_MODEL` | `cross-encoder/nli-deberta-v3-small` | HuggingFace model used by Layer 3. Validated at startup — an informative warning is logged if the model cannot be fetched. |
+| `NW_ZS_PRELOAD` | `false` | Set to `true` (or `1` / `yes`) to eagerly download and load the zero-shot model at startup instead of waiting for the first ambiguous request. A clear log message is emitted when preloading begins and when it completes (or fails). |
 
-Layer 3 loads lazily on the first request that reaches it and is then cached in memory. If the model or `transformers` library is unavailable, NodeWeaver logs a warning and returns the best result from Layers 1–2 instead of crashing.
+By default, Layer 3 loads lazily on the first request that reaches it and is then cached in memory. Setting `NW_ZS_PRELOAD=true` eliminates the first-call latency spike and makes model-fetch failures immediately visible in startup logs. If the model or `transformers` library is unavailable, NodeWeaver logs a warning and returns the best result from Layers 1–2 instead of crashing.
 
 ---
 
@@ -101,7 +102,9 @@ GET /api/v1/health
   "api_version": "v1",
   "components": {
     "database": "healthy",
-    "embedding_model": "ready"
+    "embedding_model": "ready",
+    "rag_engine": "full",
+    "zero_shot_model": "ready"
   },
   "timestamp": "2025-08-04T19:30:52Z"
 }
@@ -116,11 +119,21 @@ GET /api/v1/health
   "api_version": "v1",
   "components": {
     "database": "unhealthy",
-    "embedding_model": "ready"
+    "embedding_model": "ready",
+    "rag_engine": "full",
+    "zero_shot_model": "loading"
   },
   "timestamp": "2025-08-04T19:30:52Z"
 }
 ```
+
+The `zero_shot_model` field reports one of three values:
+
+| Value | Meaning |
+|---|---|
+| `loading` | Model has not yet been loaded (lazy mode) or is actively downloading (preload in progress) |
+| `ready` | Model is loaded in memory and ready to classify |
+| `unavailable` | Model failed to load — Layer 3 is disabled for this session |
 
 ---
 

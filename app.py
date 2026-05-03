@@ -135,6 +135,31 @@ def create_app():
         app.extensions['classification_pipeline'] = pipeline
         logger.info("Classification Pipeline initialized")
 
+        def _zero_shot_startup(p, do_preload):
+            try:
+                valid = p.validate_zero_shot_model()
+                if valid and do_preload:
+                    p.preload_zero_shot()
+                elif valid and not do_preload:
+                    logger.info(
+                        "Zero-shot model '%s' will load lazily on first use "
+                        "(set NW_ZS_PRELOAD=true to pre-warm at startup)",
+                        Config.NW_ZS_MODEL,
+                    )
+            except Exception:
+                logger.exception(
+                    "Unexpected error in zero-shot startup thread — "
+                    "Layer 3 will remain in 'loading' state"
+                )
+
+        zs_startup_thread = threading.Thread(
+            target=_zero_shot_startup,
+            args=(pipeline, Config.NW_ZS_PRELOAD),
+            name='zs-startup',
+            daemon=True,
+        )
+        zs_startup_thread.start()
+
     # ------------------------------------------------------------------ #
     # CORS: handle OPTIONS preflight before any auth check fires          #
     # ------------------------------------------------------------------ #
@@ -211,6 +236,10 @@ def create_app():
                 embedding_status = 'unavailable'
 
         rag_engine_type = app.extensions.get('rag_engine_type', 'unknown')
+
+        pipeline = app.extensions.get('classification_pipeline')
+        zs_status = pipeline.zero_shot_status if pipeline is not None else 'unavailable'
+
         overall_healthy = db_status == 'healthy' and embedding_status == 'ready'
         status_code = 200 if overall_healthy else 503
         return jsonify({
@@ -222,6 +251,7 @@ def create_app():
                 'database': db_status,
                 'embedding_model': embedding_status,
                 'rag_engine': rag_engine_type,
+                'zero_shot_model': zs_status,
             },
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }), status_code
