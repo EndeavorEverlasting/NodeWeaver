@@ -32,6 +32,28 @@ Origins listed in `NODEWEAVER_ALLOWED_ORIGINS` (comma-separated) receive CORS he
 
 ---
 
+## Classification Pipeline
+
+NodeWeaver uses a three-layer classification pipeline for every `/api/v1/classify` call. Each layer only runs if the previous layer did not produce a confident enough result.
+
+| Layer | Name | Description |
+|---|---|---|
+| 1 | `nodeweaver_rag` | Internal keyword + topic scoring (existing RAG engine) |
+| 2 | `rag_augmented` | Re-scores using augmented context from similar topics |
+| 3 | `universal_classifier` | HuggingFace zero-shot model as final fallback |
+
+### Pipeline environment variables
+
+| Variable | Default | Description |
+|---|---|---|
+| `NW_L1_CONFIDENCE_THRESHOLD` | `0.7` | Minimum confidence for Layer 1 result to be accepted |
+| `NW_L2_CONFIDENCE_THRESHOLD` | `0.55` | Minimum confidence for Layer 2 result to be accepted |
+| `NW_ZS_MODEL` | `cross-encoder/nli-deberta-v3-small` | HuggingFace model used by Layer 3 |
+
+Layer 3 loads lazily on the first request that reaches it and is then cached in memory. If the model or `transformers` library is unavailable, NodeWeaver logs a warning and returns the best result from Layers 1–2 instead of crashing.
+
+---
+
 ## Rate Limiting
 
 - Maximum 100 requests per minute per IP
@@ -109,6 +131,10 @@ Content-Type: application/json
 {
   "predicted_category": "academic",
   "confidence_score": 0.89,
+  "classification_source": "nodeweaver_rag",
+  "layer_debug": {
+    "layer1": { "category": "academic", "confidence": 0.89 }
+  },
   "similar_topics": [
     { "label": "education", "similarity": 0.76 }
   ],
@@ -117,6 +143,13 @@ Content-Type: application/json
   "log_id": 17
 }
 ```
+
+| Field | Type | Description |
+|---|---|---|
+| `predicted_category` | string | Winning category label |
+| `confidence_score` | float | Confidence of the winning layer |
+| `classification_source` | string | Layer that produced the result: `nodeweaver_rag`, `rag_augmented`, or `universal_classifier` |
+| `layer_debug` | object | Per-layer category and confidence for debugging |
 
 ---
 

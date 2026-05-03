@@ -31,6 +31,13 @@ class Config:
     # Logging configuration
     LOG_LEVEL = os.environ.get('LOG_LEVEL', 'INFO')
 
+    # Classification pipeline thresholds
+    NW_L1_CONFIDENCE_THRESHOLD = float(os.environ.get('NW_L1_CONFIDENCE_THRESHOLD', '0.7'))
+    NW_L2_CONFIDENCE_THRESHOLD = float(os.environ.get('NW_L2_CONFIDENCE_THRESHOLD', '0.55'))
+
+    # Zero-shot model override (Layer 3)
+    NW_ZS_MODEL = os.environ.get('NW_ZS_MODEL', 'cross-encoder/nli-deberta-v3-small')
+
     # AxTask integration — NodeWeaver side
     NODEWEAVER_API_KEY = os.environ.get('NODEWEAVER_API_KEY')
     NODEWEAVER_ALLOWED_ORIGINS = os.environ.get('NODEWEAVER_ALLOWED_ORIGINS', '*')

@@ -27,15 +27,23 @@ def classify_text():
         text = data['text']
         metadata = data.get('metadata', {})
         
-        # Get RAG engine from app context
-        rag_engine = current_app.extensions['rag_engine']
-        
-        # Perform classification
-        result = rag_engine.classify_text(text, metadata)
+        # Get classification pipeline from app context
+        pipeline = current_app.extensions.get('classification_pipeline')
+        if pipeline is None:
+            # Fallback: direct RAG engine (backwards-compatible)
+            rag_engine = current_app.extensions['rag_engine']
+            result = rag_engine.classify_text(text, metadata)
+            result.setdefault('classification_source', 'nodeweaver_rag')
+        else:
+            result = pipeline.classify(text, metadata)
         
         processing_time = time.time() - start_time
         
-        # Log classification
+        # Log classification (include pipeline source in meta_data)
+        log_meta = dict(metadata)
+        log_meta['classification_source'] = result.get('classification_source', 'nodeweaver_rag')
+        log_meta['layer_debug'] = result.get('layer_debug', {})
+
         log_entry = ClassificationLog(
             input_text=text,
             predicted_category=result.get('predicted_category'),
@@ -43,7 +51,7 @@ def classify_text():
             similar_topics=result.get('similar_topics'),
             similar_nodes=result.get('similar_nodes'),
             processing_time=processing_time,
-            meta_data=metadata
+            meta_data=log_meta
         )
         db.session.add(log_entry)
         db.session.commit()
@@ -77,6 +85,7 @@ def classify_batch():
         if len(texts) > 100:  # Limit batch size
             return jsonify({'error': 'Batch size limited to 100 texts'}), 400
         
+        pipeline = current_app.extensions.get('classification_pipeline')
         rag_engine = current_app.extensions['rag_engine']
         results = []
         
@@ -86,7 +95,11 @@ def classify_batch():
                 continue
             
             try:
-                result = rag_engine.classify_text(text)
+                if pipeline is not None:
+                    result = pipeline.classify(text)
+                else:
+                    result = rag_engine.classify_text(text)
+                    result.setdefault('classification_source', 'nodeweaver_rag')
                 results.append(result)
             except Exception as e:
                 logger.error(f"Error classifying text at index {i}: {str(e)}")

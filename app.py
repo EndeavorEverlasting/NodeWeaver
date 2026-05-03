@@ -59,9 +59,20 @@ def create_app():
         db.create_all()
 
         from services.rag_engine_simple import SimpleRAGEngine
+        from services.classification_pipeline import ClassificationPipeline
+        from config import Config
+
         rag_engine = SimpleRAGEngine(db)
         app.extensions['rag_engine'] = rag_engine
-        logger.info("Simple RAG Engine initialized")
+
+        pipeline = ClassificationPipeline(
+            rag_engine=rag_engine,
+            db=db,
+            l1_threshold=Config.NW_L1_CONFIDENCE_THRESHOLD,
+            l2_threshold=Config.NW_L2_CONFIDENCE_THRESHOLD,
+        )
+        app.extensions['classification_pipeline'] = pipeline
+        logger.info("Simple RAG Engine and Classification Pipeline initialized")
 
     # ------------------------------------------------------------------ #
     # CORS: handle OPTIONS preflight before any auth check fires          #
