@@ -13,6 +13,11 @@ __description__ = "An intelligent RAG classifier API for automatic task categori
 __author__ = "AxTask Team"
 __license__ = "MIT"
 
-from .app import create_app
-
 __all__ = ["create_app", "__version__"]
+
+
+def __getattr__(name):
+    if name == "create_app":
+        from .app import create_app
+        return create_app
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
