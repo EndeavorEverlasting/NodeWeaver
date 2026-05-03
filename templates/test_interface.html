@@ -93,10 +93,11 @@
                 </div>
 
                 <div class="card mt-4">
-                    <div class="card-header">
+                    <div class="card-header d-flex justify-content-between align-items-center">
                         <h6 class="mb-0">
                             <i class="fas fa-history me-2"></i>Recent Classifications
                         </h6>
+                        <small class="text-muted">Source layer shown per entry</small>
                     </div>
                     <div class="card-body" style="max-height: 400px; overflow-y: auto;">
                         <div id="recentClassifications">
@@ -107,6 +108,18 @@
                                 <p class="mb-0 mt-2">Loading recent classifications...</p>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="card mt-4">
+                    <div class="card-header">
+                        <h6 class="mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>Layer Distribution
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <canvas id="layerDistributionChart" height="180"></canvas>
+                        <div id="layerDistributionFallback" class="text-center text-muted small" style="display:none;">No data yet</div>
                     </div>
                 </div>
             </div>
@@ -143,6 +156,57 @@
                 </div>
             </div>
         </div>
+
+        <div class="row mt-4">
+            <div class="col-12">
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h6 class="mb-0">
+                            <i class="fas fa-table me-2"></i>Classification Log History
+                        </h6>
+                        <button class="btn btn-sm btn-outline-secondary" id="refreshLogsBtn">
+                            <i class="fas fa-sync-alt me-1"></i>Refresh
+                        </button>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="table-responsive">
+                            <table class="table table-sm table-hover mb-0" id="logsTable">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th style="width:60px;">#</th>
+                                        <th>Input Text</th>
+                                        <th style="width:130px;">Category</th>
+                                        <th style="width:160px;">Source</th>
+                                        <th style="width:100px;">Confidence</th>
+                                        <th style="width:140px;">Time</th>
+                                        <th style="width:60px;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="logsTableBody">
+                                    <tr>
+                                        <td colspan="7" class="text-center text-muted py-3">
+                                            <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                                            Loading logs...
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-top" id="logsPagination" style="display:none!important;">
+                            <small class="text-muted" id="logsPageInfo"></small>
+                            <div class="btn-group btn-group-sm">
+                                <button class="btn btn-outline-secondary" id="logsPrevBtn" disabled>
+                                    <i class="fas fa-chevron-left"></i>
+                                </button>
+                                <button class="btn btn-outline-secondary" id="logsNextBtn" disabled>
+                                    <i class="fas fa-chevron-right"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -168,9 +232,31 @@
         </div>
     </div>
 </div>
+
+<!-- Log Detail Modal -->
+<div class="modal fade" id="logDetailModal" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fas fa-layer-group me-2"></i>Classification Log Detail
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="logDetailBody">
+                <div class="text-center">
+                    <div class="spinner-border" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const examples = [
@@ -229,6 +315,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             displayResults(data, text);
             loadRecentClassifications();
+            loadLogsTable(1);
         })
         .catch(error => {
             console.error('Error:', error);
@@ -277,6 +364,7 @@ document.addEventListener('DOMContentLoaded', function() {
         .then(data => {
             displayBatchResults(data);
             loadRecentClassifications();
+            loadLogsTable(1);
         })
         .catch(error => {
             console.error('Error:', error);
@@ -390,14 +478,35 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load recent classifications on page load
     loadRecentClassifications();
 
+    function sourceLabel(source) {
+        const labels = {
+            'nodeweaver_rag': 'NodeWeaver RAG',
+            'rag_augmented': 'RAG Augmented',
+            'universal_classifier': 'Universal Classifier'
+        };
+        return labels[source] || (source ? source : 'Legacy/Unknown');
+    }
+
+    function sourceBadgeClass(source) {
+        const classes = {
+            'nodeweaver_rag': 'bg-primary',
+            'rag_augmented': 'bg-info text-dark',
+            'universal_classifier': 'bg-secondary'
+        };
+        return classes[source] || 'bg-secondary opacity-50';
+    }
+
     function displayResults(data, inputText) {
         const confidence = data.confidence_score || 0;
         const confidenceClass = confidence > 0.8 ? 'success' : confidence > 0.5 ? 'warning' : 'danger';
+        const source = data.classification_source;
+        const layerDebug = data.layer_debug || {};
+        const layerEntries = Object.entries(layerDebug);
         
         const resultsHtml = `
             <div class="alert alert-${confidenceClass} mb-3">
-                <div class="d-flex justify-content-between align-items-center">
-                    <div>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div class="flex-grow-1">
                         <h6 class="mb-1">
                             <i class="fas fa-tag me-2"></i>Category: 
                             <span class="fw-bold">${data.predicted_category || 'unknown'}</span>
@@ -408,6 +517,12 @@ document.addEventListener('DOMContentLoaded', function() {
                             </div>
                         </div>
                     </div>
+                    ${source ? `
+                    <div class="ms-3 text-end">
+                        <div class="small text-muted mb-1">Source Layer</div>
+                        <span class="badge ${sourceBadgeClass(source)}">${sourceLabel(source)}</span>
+                    </div>
+                    ` : ''}
                 </div>
             </div>
             
@@ -417,6 +532,53 @@ document.addEventListener('DOMContentLoaded', function() {
                     <code class="text-light">${inputText}</code>
                 </div>
             </div>
+
+            ${layerEntries.length > 0 ? `
+                <div class="mb-3">
+                    <h6><i class="fas fa-layer-group me-2"></i>Layer Confidence Breakdown:</h6>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th>Layer</th>
+                                    <th>Category</th>
+                                    <th>Confidence</th>
+                                    <th>Winner</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${layerEntries.map(([layerKey, info]) => {
+                                    const layerSourceMap = {
+                                        'layer1': 'nodeweaver_rag',
+                                        'layer2': 'rag_augmented',
+                                        'layer3': 'universal_classifier'
+                                    };
+                                    const layerSrc = layerSourceMap[layerKey] || layerKey;
+                                    const layerConf = typeof info === 'object' && info !== null ? (info.confidence != null ? info.confidence : null) : null;
+                                    const layerCat = typeof info === 'object' && info !== null ? (info.category || '') : '';
+                                    const isWinner = layerSrc === source;
+                                    return `
+                                    <tr class="${isWinner ? 'table-success' : ''}">
+                                        <td><span class="badge ${sourceBadgeClass(layerSrc)}">${sourceLabel(layerSrc)}</span></td>
+                                        <td><small>${escapeHtml(layerCat) || '<span class="text-muted">—</span>'}</small></td>
+                                        <td>
+                                            ${layerConf !== null ? `
+                                                <div class="d-flex align-items-center gap-2">
+                                                    <div class="progress flex-grow-1" style="height:12px; min-width:60px;">
+                                                        <div class="progress-bar" style="width:${(layerConf*100).toFixed(1)}%"></div>
+                                                    </div>
+                                                    <small>${(layerConf*100).toFixed(1)}%</small>
+                                                </div>
+                                            ` : '<small class="text-muted">N/A</small>'}
+                                        </td>
+                                        <td class="text-center">${isWinner ? '<i class="fas fa-check-circle text-success"></i>' : ''}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            ` : ''}
             
             ${data.similar_topics && data.similar_topics.length > 0 ? `
                 <div class="mb-3">
@@ -492,27 +654,33 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadRecentClassifications() {
-        fetch('/api/v1/logs?per_page=5')
+        fetch('/api/v1/logs?per_page=20')
             .then(response => response.json())
             .then(data => {
-                const recentHtml = data.logs && data.logs.length > 0 ? 
-                    data.logs.map(log => `
-                        <div class="border-bottom pb-2 mb-2">
-                            <div class="d-flex justify-content-between align-items-center">
-                                <span class="badge bg-primary">${log.predicted_category || 'unknown'}</span>
-                                <small class="text-muted">${new Date(log.created_at).toLocaleTimeString()}</small>
+                const logs = data.logs || [];
+                logs.forEach(log => { logStore[log.log_id] = log; });
+                const recentHtml = logs.length > 0 ? 
+                    logs.slice(0, 5).map(log => {
+                        const rSrc = log.classification_source;
+                        return `
+                        <div class="border-bottom pb-2 mb-2" role="button" style="cursor:pointer;" data-log-id="${log.log_id}" onclick="openLogDetailById(this.dataset.logId)" title="Click to see layer detail">
+                            <div class="d-flex justify-content-between align-items-center flex-wrap gap-1">
+                                <span class="badge bg-primary">${escapeHtml(log.predicted_category || 'unknown')}</span>
+                                <span class="badge ${sourceBadgeClass(rSrc)}">${sourceLabel(rSrc)}</span>
+                                <small class="text-muted ms-auto">${new Date(log.created_at).toLocaleTimeString()}</small>
                             </div>
                             <div class="text-truncate mt-1" style="max-width: 100%;">
-                                <small>${log.input_text}</small>
+                                <small>${escapeHtml(log.input_text)}</small>
                             </div>
                             <div class="progress mt-1" style="height: 10px;">
                                 <div class="progress-bar" style="width: ${(log.confidence_score || 0) * 100}%"></div>
                             </div>
-                        </div>
-                    `).join('') : 
+                        </div>`;
+                    }).join('') : 
                     '<div class="text-center text-muted">No recent classifications</div>';
                 
                 document.getElementById('recentClassifications').innerHTML = recentHtml;
+                updateLayerDistributionChart(logs);
             })
             .catch(error => {
                 document.getElementById('recentClassifications').innerHTML = `
@@ -522,6 +690,234 @@ document.addEventListener('DOMContentLoaded', function() {
                     </div>
                 `;
             });
+    }
+
+    // ---- Classification Log History Table ----
+    const logStore = {};
+    let logsCurrentPage = 1;
+    const logsPerPage = 10;
+
+    function loadLogsTable(page) {
+        logsCurrentPage = page;
+        fetch(`/api/v1/logs?page=${page}&per_page=${logsPerPage}`)
+            .then(r => r.json())
+            .then(data => {
+                const logs = data.logs || [];
+                const pagination = data.pagination || {};
+                const tbody = document.getElementById('logsTableBody');
+
+                if (logs.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-3">No classification logs yet</td></tr>';
+                } else {
+                    logs.forEach(log => { logStore[log.log_id] = log; });
+                    tbody.innerHTML = logs.map(log => {
+                        const src = log.classification_source;
+                        const conf = (log.confidence_score || 0) * 100;
+                        const ts = log.created_at ? new Date(log.created_at).toLocaleString() : '—';
+                        return `
+                        <tr>
+                            <td class="text-muted"><small>${log.log_id}</small></td>
+                            <td>
+                                <small class="text-truncate d-block" style="max-width:260px;" title="${escapeHtml(log.input_text)}">${escapeHtml(log.input_text)}</small>
+                            </td>
+                            <td><span class="badge bg-primary">${escapeHtml(log.predicted_category || 'unknown')}</span></td>
+                            <td>
+                                ${src ? `<span class="badge ${sourceBadgeClass(src)}">${sourceLabel(src)}</span>` : '<span class="text-muted small">—</span>'}
+                            </td>
+                            <td>
+                                <div class="d-flex align-items-center gap-1">
+                                    <div class="progress flex-grow-1" style="height:10px; min-width:40px;">
+                                        <div class="progress-bar" style="width:${conf.toFixed(1)}%"></div>
+                                    </div>
+                                    <small>${conf.toFixed(0)}%</small>
+                                </div>
+                            </td>
+                            <td><small class="text-muted">${ts}</small></td>
+                            <td>
+                                <button class="btn btn-xs btn-outline-secondary p-1 lh-1" data-log-id="${log.log_id}" onclick="openLogDetailById(this.dataset.logId)" title="View detail">
+                                    <i class="fas fa-info-circle"></i>
+                                </button>
+                            </td>
+                        </tr>`;
+                    }).join('');
+                }
+
+                // Pagination UI
+                const paginationEl = document.getElementById('logsPagination');
+                const pageInfo = document.getElementById('logsPageInfo');
+                const prevBtn = document.getElementById('logsPrevBtn');
+                const nextBtn = document.getElementById('logsNextBtn');
+
+                if (pagination.total > logsPerPage) {
+                    paginationEl.style.removeProperty('display');
+                    pageInfo.textContent = `Page ${pagination.page} of ${pagination.pages} (${pagination.total} total)`;
+                    prevBtn.disabled = !pagination.has_prev;
+                    nextBtn.disabled = !pagination.has_next;
+                } else {
+                    paginationEl.style.setProperty('display', 'none', 'important');
+                }
+            })
+            .catch(() => {
+                document.getElementById('logsTableBody').innerHTML =
+                    '<tr><td colspan="7" class="text-center text-danger py-3">Failed to load logs</td></tr>';
+            });
+    }
+
+    function escapeHtml(text) {
+        const d = document.createElement('div');
+        d.textContent = text || '';
+        return d.innerHTML;
+    }
+
+    window.openLogDetailById = function(logId) {
+        const log = logStore[logId];
+        if (log) openLogDetail(log);
+    };
+
+    window.openLogDetail = function(log) {
+        const modal = new bootstrap.Modal(document.getElementById('logDetailModal'));
+        const body = document.getElementById('logDetailBody');
+        const src = log.classification_source;
+        const layerDebug = log.layer_debug || {};
+        const layerEntries = Object.entries(layerDebug);
+        const layerSourceMap = {
+            'layer1': 'nodeweaver_rag',
+            'layer2': 'rag_augmented',
+            'layer3': 'universal_classifier'
+        };
+
+        body.innerHTML = `
+            <div class="mb-3">
+                <div class="d-flex align-items-start gap-3 flex-wrap">
+                    <div class="flex-grow-1">
+                        <div class="text-muted small mb-1">Input Text</div>
+                        <div class="p-2 bg-dark rounded"><code class="text-light small">${escapeHtml(log.input_text)}</code></div>
+                    </div>
+                    <div class="text-end">
+                        <div class="text-muted small mb-1">Category</div>
+                        <span class="badge bg-primary fs-6">${escapeHtml(log.predicted_category || 'unknown')}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-3 g-2">
+                <div class="col-sm-4">
+                    <div class="card card-body py-2 text-center">
+                        <div class="text-muted small">Source Layer</div>
+                        ${src ? `<span class="badge ${sourceBadgeClass(src)} mt-1">${sourceLabel(src)}</span>` : '<span class="text-muted small">Unknown</span>'}
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="card card-body py-2 text-center">
+                        <div class="text-muted small">Confidence</div>
+                        <div class="fw-bold">${((log.confidence_score || 0) * 100).toFixed(1)}%</div>
+                    </div>
+                </div>
+                <div class="col-sm-4">
+                    <div class="card card-body py-2 text-center">
+                        <div class="text-muted small">Processing Time</div>
+                        <div class="fw-bold">${log.processing_time ? (log.processing_time * 1000).toFixed(0) + 'ms' : '—'}</div>
+                    </div>
+                </div>
+            </div>
+
+            ${layerEntries.length > 0 ? `
+            <h6><i class="fas fa-layer-group me-2"></i>Layer Confidence Breakdown</h6>
+            <table class="table table-sm table-bordered">
+                <thead class="table-dark">
+                    <tr><th>Layer</th><th>Category</th><th>Confidence</th><th>Winner</th></tr>
+                </thead>
+                <tbody>
+                    ${layerEntries.map(([layerKey, info]) => {
+                        const layerSrc = layerSourceMap[layerKey] || layerKey;
+                        const layerConf = info && info.confidence != null ? info.confidence : null;
+                        const layerCat = info && info.category ? info.category : '';
+                        const isWinner = layerSrc === src;
+                        return `<tr class="${isWinner ? 'table-success' : ''}">
+                            <td><span class="badge ${sourceBadgeClass(layerSrc)}">${sourceLabel(layerSrc)}</span></td>
+                            <td><small>${escapeHtml(layerCat) || '<span class="text-muted">—</span>'}</small></td>
+                            <td>
+                                ${layerConf !== null ? `
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div class="progress flex-grow-1" style="height:10px; min-width:60px;">
+                                            <div class="progress-bar" style="width:${(layerConf*100).toFixed(1)}%"></div>
+                                        </div>
+                                        <small>${(layerConf*100).toFixed(1)}%</small>
+                                    </div>` : '<span class="text-muted small">N/A</span>'}
+                            </td>
+                            <td class="text-center">${isWinner ? '<i class="fas fa-check-circle text-success"></i>' : ''}</td>
+                        </tr>`;
+                    }).join('')}
+                </tbody>
+            </table>
+            ` : '<p class="text-muted small">No layer debug data available for this log entry.</p>'}
+
+            <div class="text-muted small">Log ID: ${log.log_id} &nbsp;|&nbsp; ${log.created_at ? new Date(log.created_at).toLocaleString() : ''}</div>
+        `;
+        modal.show();
+    };
+
+    document.getElementById('refreshLogsBtn').addEventListener('click', () => loadLogsTable(1));
+    document.getElementById('logsPrevBtn').addEventListener('click', () => loadLogsTable(logsCurrentPage - 1));
+    document.getElementById('logsNextBtn').addEventListener('click', () => loadLogsTable(logsCurrentPage + 1));
+
+    loadLogsTable(1);
+
+    let layerChart = null;
+
+    function updateLayerDistributionChart(logs) {
+        const counts = { nodeweaver_rag: 0, rag_augmented: 0, universal_classifier: 0 };
+        logs.forEach(log => {
+            const src = log.classification_source;
+            if (src && src in counts) counts[src]++;
+        });
+
+        const total = counts.nodeweaver_rag + counts.rag_augmented + counts.universal_classifier;
+        const canvas = document.getElementById('layerDistributionChart');
+        const fallback = document.getElementById('layerDistributionFallback');
+
+        if (total === 0) {
+            canvas.style.display = 'none';
+            fallback.style.display = 'block';
+            return;
+        }
+
+        canvas.style.display = 'block';
+        fallback.style.display = 'none';
+
+        const chartData = {
+            labels: ['NodeWeaver RAG', 'RAG Augmented', 'Universal Classifier'],
+            datasets: [{
+                data: [counts.nodeweaver_rag, counts.rag_augmented, counts.universal_classifier],
+                backgroundColor: ['#0d6efd', '#0dcaf0', '#6c757d'],
+                borderWidth: 1
+            }]
+        };
+
+        if (layerChart) {
+            layerChart.data = chartData;
+            layerChart.update();
+        } else {
+            layerChart = new Chart(canvas, {
+                type: 'doughnut',
+                data: chartData,
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: function(ctx) {
+                                    const val = ctx.parsed;
+                                    const pct = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    return ` ${val} (${pct}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
     }
 });
 </script>

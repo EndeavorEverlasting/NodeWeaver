@@ -101,6 +101,7 @@ class ClassificationLog(db.Model):
     created_at = db.Column(DateTime, default=datetime.datetime.utcnow)
     
     def to_dict(self):
+        meta = self.meta_data or {}
         return {
             'log_id': self.log_id,
             'input_text': self.input_text,
@@ -110,5 +111,7 @@ class ClassificationLog(db.Model):
             'similar_nodes': self.similar_nodes,
             'processing_time': self.processing_time,
             'metadata': self.meta_data,
+            'classification_source': meta.get('classification_source'),
+            'layer_debug': meta.get('layer_debug', {}),
             'created_at': self.created_at.isoformat() if self.created_at else None
         }
