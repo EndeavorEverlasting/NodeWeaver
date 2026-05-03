@@ -1,30 +1,72 @@
-# NodeWeaver Learning Mechanisms Documentation
+# NodeWeaver Learning Mechanisms
 
-## Overview
+_Version 1.0.3 — Added corrective feedback loop, training data integration, and enhanced category vocabulary_
 
-NodeWeaver Version 1.0.3 introduces sophisticated learning mechanisms that enable the system to improve classification accuracy through user feedback and training data. The system can learn from misclassifications and adapt to domain-specific terminology and patterns.
+---
 
-## Learning Architecture
+## Why Learning Matters
 
-### 1. Corrective Feedback Loop
+A keyword-based classifier is only as good as its keyword lists. When a user sees "Attend city council meeting about zoning changes" classified as **work**, that's technically correct but shallow — the meeting is a civic/government obligation, which is better captured by **political** and **legal**. Learning mechanisms let the system grow beyond its initial vocabulary in two ways:
 
-When the system misclassifies text, users can provide corrections that the system learns from:
+1. **Proactive training** — you feed it labeled examples you already know are right.
+2. **Reactive correction** — you tell it when it gets something wrong, and it remembers.
 
-**API Endpoint**: `POST /api/v1/correct`
+---
 
-**Request Format**:
-```json
+## How the System Classifies (Background)
+
+Before diving into learning, it helps to know how classification works:
+
+1. The input text is lowercased and scanned against a keyword dictionary for each category.
+2. Each keyword match increments that category's score. Confidence = `min(0.9, base_confidence + (matches − 1) × 0.05)`.
+3. All categories above zero matches are returned as `all_categories`, sorted by confidence. The highest becomes `predicted_category`.
+4. Categories with a higher `base_confidence` win ties — that's why `political` (0.85) now beats `work` (0.9 cap but 0.8 for one keyword match) for civic meeting text that hits the political keyword set multiple times.
+
+---
+
+## Category Vocabulary
+
+### Political — base confidence 0.85
+
+Keywords that trigger this category include:
+
+> political, government, policy, vote, election, senator, congress, politics, law, **city council**, **council**, **zoning**, **municipal**, **civic**, **public hearing**, **ordinance**, **regulation**
+
+The bold words were added in v1.0.3 specifically to handle government and civic meetings that were previously slipping through as generic `work`.
+
+### Legal — base confidence 0.85 (new in v1.0.3)
+
+> legal, law, court, judge, lawyer, attorney, lawsuit, contract, regulation, compliance, **zoning**, **ordinance**, municipal law, jurisdiction, statute
+
+Zoning and ordinance appear in both `political` and `legal` because a zoning hearing is simultaneously a civic act and a legal proceeding — the multi-label system correctly assigns both.
+
+### Work — base confidence 0.9 cap, but 0.8 for a single keyword match
+
+> meeting, project, deadline, office, work, job, business, report, presentation, client, task, colleague, conference, schedule
+
+`work` still appears in multi-label results for civic meetings (because "meeting" is a work keyword), but it no longer wins the primary classification when competing against multiple political/legal keyword hits.
+
+---
+
+## API: Reactive Correction
+
+Use this when the system returned the wrong primary category.
+
+```
+POST /api/v1/correct
+Content-Type: application/json
+X-API-Key: <your-key>
+
 {
   "text": "Attend city council meeting about zoning changes",
   "correct_category": "political",
   "metadata": {
-    "user_id": "12345",
-    "correction_reason": "Government meetings should be political, not work"
+    "note": "Government meetings are civic/political, not generic work"
   }
 }
 ```
 
-**Response**:
+**Response:**
 ```json
 {
   "success": true,
@@ -34,203 +76,145 @@ When the system misclassifies text, users can provide corrections that the syste
 }
 ```
 
-### 2. Training Data Integration
+**What happens internally:**
 
-Users can provide labeled examples to improve specific category recognition:
+1. The system queries `ClassificationLog` for the most recent entry with this exact text.
+2. It records the original predicted category alongside the corrected one in correction metadata.
+3. It calls `add_training_data()` with the correct category — creating a new `Document` row with `confidence_score = 0.95` and `meta_data.is_correction = true`.
+4. It extracts significant words from the text (length > 3, alphabetic) and logs them as candidate keywords for the corrected category.
 
-**API Endpoint**: `POST /api/v1/train`
+**If the text hasn't been classified before**, the endpoint returns HTTP 404 with `"success": false`. In that case, use `/api/v1/train` instead.
 
-**Request Format**:
-```json
+---
+
+## API: Proactive Training
+
+Use this to pre-teach the system before it even encounters similar text in production.
+
+```
+POST /api/v1/train
+Content-Type: application/json
+X-API-Key: <your-key>
+
 {
-  "text": "Review municipal ordinance 2024-05 for compliance",
+  "text": "Review municipal ordinance 2024-05 for zoning compliance",
   "category": "legal",
   "metadata": {
-    "training_source": "municipal_legal_documents",
-    "expert_validation": true
+    "source": "city_legal_team",
+    "validated_by": "attorney"
   }
 }
 ```
 
-**Response**:
+**Response:**
 ```json
 {
   "success": true,
-  "document_id": 123,
-  "text": "Review municipal ordinance 2024-05 for compliance",
+  "document_id": 42,
+  "text": "Review municipal ordinance 2024-05 for zoning compliance",
   "category": "legal",
   "message": "Training data added for category: legal"
 }
 ```
 
-## Learning Mechanisms
+**What happens internally:**
 
-### Keyword Extraction and Storage
+1. A `Document` row is created with `confidence_score = 0.95`, `predicted_category = "legal"`, and `meta_data.is_training_data = true`.
+2. The document's embedding is generated and stored (enables future vector-similarity retrieval once the full ML stack is active).
+3. `_update_category_keywords()` extracts words like `["review", "municipal", "ordinance", "zoning", "compliance"]` and logs them — these can feed a future dynamic keyword updater.
+4. The document participates in the `similar_topics` lookup for future classifications.
 
-When training data or corrections are provided, the system:
+---
 
-1. **Extracts Significant Terms**: Identifies meaningful words (length > 3, alphabetic)
-2. **Associates with Categories**: Links extracted terms to the correct category
-3. **Stores Learning Metadata**: Tracks when and how the learning occurred
-4. **Logs Learning Events**: Records all learning activities for analysis
+## Learning Storage Schema
 
-### Enhanced Category Detection
-
-#### Before Enhancement
-- Limited keyword sets per category
-- Generic confidence scoring
-- Poor distinction between similar domains (work vs. political)
-
-#### After Enhancement
-- **Expanded Keyword Databases**: 
-  - Political: Added municipal terms (city council, zoning, ordinance, civic, municipal)
-  - Legal: New category with specialized terms (law, court, judge, attorney, compliance)
-- **Higher Confidence for Specialized Categories**: Legal and political categories now have 0.85 base confidence vs. 0.7
-- **Better Domain Distinction**: System can differentiate nuanced contexts
-
-### Multi-Label Learning Integration
-
-The learning system works seamlessly with multi-label classification:
-
-- **Corrections Preserve Multi-Labels**: When correcting primary category, secondary categories are maintained
-- **Training Enhances All Related Categories**: New training examples improve detection across related topics
-- **Confidence Rebalancing**: Learning adjusts confidence scores across categories based on patterns
-
-## Real-World Learning Examples
-
-### Example 1: Government Meeting Classification
-
-**Original Classification**:
-```json
-{
-  "text": "Attend city council meeting about zoning changes",
-  "predicted_category": "work",
-  "confidence_score": 0.8,
-  "all_categories": [{"category": "work", "confidence": 0.8}]
-}
-```
-
-**After Learning Enhancement**:
-```json
-{
-  "text": "Attend city council meeting about zoning changes",
-  "predicted_category": "political",
-  "confidence_score": 0.9,
-  "all_categories": [
-    {"category": "political", "confidence": 0.9},
-    {"category": "legal", "confidence": 0.85},
-    {"category": "work", "confidence": 0.8}
-  ]
-}
-```
-
-**Learning Impact**: The system now correctly identifies government/municipal activities as primarily political rather than generic work.
-
-### Example 2: Legal Document Review
-
-**Training Input**:
-```json
-{
-  "text": "Review contract compliance with municipal regulations",
-  "category": "legal"
-}
-```
-
-**Learning Outcome**: Future texts mentioning "compliance", "regulations", "municipal" will have higher legal classification confidence.
-
-## Learning Data Storage
-
-### Training Data Tracking
-
-All learning examples are stored with comprehensive metadata:
+Every training and correction document is stored in the `documents` table with this metadata structure:
 
 ```json
 {
   "is_training_data": true,
   "user_corrected_category": "political",
-  "training_timestamp": "2025-08-05T00:30:00Z",
+  "training_timestamp": "2025-08-05T00:30:00",
+
   "original_category": "work",
-  "correction_timestamp": "2025-08-05T00:30:00Z",
+  "corrected_category": "political",
+  "correction_timestamp": "2025-08-05T00:30:00",
   "is_correction": true
 }
 ```
 
-### Learning Analytics
+Fields present on training-only documents (not corrections): `is_training_data`, `training_timestamp`.  
+Fields added by corrections: `original_category`, `corrected_category`, `correction_timestamp`, `is_correction`.
 
-The system tracks:
-- **Correction Frequency**: Which categories are most often corrected
-- **Learning Patterns**: What types of text benefit most from training
-- **Accuracy Improvements**: Confidence score changes over time
-- **Keyword Effectiveness**: Which learned keywords improve classification
+---
 
-## Implementation Details
+## Real-World Example: Government Meeting
 
-### Learning Methods
+### Before v1.0.3
 
-#### `add_training_data(text, category, metadata)`
-- Creates high-confidence training document (0.95 confidence)
-- Extracts and stores new keywords for the category
-- Links training example to existing topic associations
-- Logs learning event for analysis
+```
+Input: "Attend city council meeting about zoning changes"
 
-#### `correct_classification(text, correct_category, metadata)`
-- Finds original misclassification in logs
-- Creates correction training example
-- Stores both original and corrected categories for pattern analysis
-- Enables tracking of classification improvement over time
+all_categories:
+  - work  →  0.8  (1 keyword match: "meeting")
+```
 
-#### `_update_category_keywords(text, category)`
-- Extracts meaningful terms from training text
-- Associates new keywords with category for future classifications
-- In full implementation, would update dynamic keyword databases
+The text hit "meeting" in the work keyword list. Nothing else matched. Primary = work.
 
-### Database Integration
+### After v1.0.3 (keyword expansion alone)
 
-Learning data integrates with existing NodeWeaver architecture:
-- **Documents Table**: Stores training examples with `is_training_data` flag
-- **Classification Logs**: Tracks all classifications for correction lookup
-- **Topic Associations**: Links training data to relevant topics
-- **Metadata Storage**: Comprehensive learning metadata in JSON fields
+```
+Input: "Attend city council meeting about zoning changes"
 
-## Future Learning Enhancements
+all_categories:
+  - political  →  0.9   (3 keyword matches: "city council", "council", "zoning")
+  - legal      →  0.85  (1 keyword match: "zoning")
+  - work       →  0.8   (1 keyword match: "meeting")
+```
 
-### Semantic Learning (Roadmap)
-- **Vector Space Learning**: Train embeddings on domain-specific text
-- **Context-Aware Classification**: Learn from surrounding text patterns
-- **Temporal Pattern Recognition**: Identify time-based classification patterns
+Primary = political. Work is still included (legitimately — attending a meeting is work-adjacent), but it is no longer the top classification.
 
-### Advanced Feedback Mechanisms
-- **Confidence Threshold Adjustment**: Dynamically adjust confidence based on learning
-- **Category Hierarchy Learning**: Learn relationships between categories
-- **User-Specific Preferences**: Personalized classification based on user patterns
+### After a correction is submitted
 
-### Learning Analytics Dashboard
-- **Learning Performance Metrics**: Track accuracy improvements over time
-- **Category Confusion Analysis**: Identify frequently confused categories
-- **Training Effectiveness Reports**: Measure impact of different training approaches
+If a user submits `POST /api/v1/correct` with `correct_category: "political"`:
+- A document is stored representing the text as strongly political.
+- When `/api/v1/topics/detect` next runs, this document participates in clustering, potentially creating or reinforcing a "Political Meetings" topic node.
+- Future texts that are similar to this one will retrieve it as a neighbor, nudging classification confidence further toward political.
 
-## Integration Guidelines
+---
 
-### For Developers
+## Improving the System Further
 
-1. **Implement Correction Workflows**: Add correction buttons to classification UIs
-2. **Batch Training Support**: Enable bulk upload of training examples
-3. **Learning Feedback Display**: Show users how their corrections improve the system
-4. **Analytics Integration**: Track learning metrics in application dashboards
+### Things you can do right now
 
-### For Users
+| Action | Endpoint | Effect |
+|---|---|---|
+| Correct a bad classification | `POST /api/v1/correct` | Creates a corrective training document |
+| Add a known-good example | `POST /api/v1/train` | Creates a positive training document |
+| Trigger topic clustering | `POST /api/v1/topics/detect` | Groups training documents into topic nodes |
 
-1. **Provide Clear Corrections**: Use specific, appropriate category names
-2. **Include Context**: Add metadata explaining correction reasoning
-3. **Consistent Training**: Use consistent terminology for similar content types
-4. **Review Learning Impact**: Monitor how corrections affect future classifications
+### What makes a good training example
+
+- **Specific**: "Review the zoning variance application for Lot 42-B" is better than "legal stuff".
+- **Representative**: Use phrasing that actually appears in real tasks, not textbook definitions.
+- **Diverse**: Cover different phrasings of the same concept — "city council hearing", "municipal board meeting", "public comment period" all belong to the same cluster.
+- **Consistent**: Use the same category name every time for the same concept (`"legal"` not `"Legal"` or `"law"`).
+
+### Roadmap: Planned learning improvements
+
+1. **Dynamic keyword database**: Currently, extracted keywords are logged. The next step is writing them back to the category keyword lists so every new training example immediately widens the detection net.
+2. **Vector-space similarity**: Once sentence-transformers is available, the system will retrieve training documents by semantic embedding distance rather than keyword overlap. This will handle paraphrases and synonyms automatically.
+3. **Confidence calibration**: Track the distribution of corrected vs. uncorrected classifications per category to automatically adjust base_confidence values.
+4. **Batch correction import**: Accept a CSV or JSON array of `{ text, category }` pairs for bulk training.
+
+---
 
 ## API Reference Summary
 
-| Endpoint | Method | Purpose | Key Fields |
-|----------|--------|---------|------------|
-| `/api/v1/classify` | POST | Standard classification | `text`, `metadata` |
-| `/api/v1/correct` | POST | Correct misclassification | `text`, `correct_category` |
-| `/api/v1/train` | POST | Add training example | `text`, `category` |
+| Endpoint | Method | Auth | Key Request Fields | Key Response Fields |
+|---|---|---|---|---|
+| `/api/v1/classify` | POST | Key | `text`, `metadata` | `predicted_category`, `confidence_score`, `all_categories` |
+| `/api/v1/correct` | POST | Key | `text`, `correct_category`, `metadata` | `success`, `message` |
+| `/api/v1/train` | POST | Key | `text`, `category`, `metadata` | `success`, `document_id`, `message` |
 
-All endpoints support metadata for tracking learning context and effectiveness.
+All three endpoints accept an optional `metadata` object for tracking context (user IDs, source systems, validation status, etc.).

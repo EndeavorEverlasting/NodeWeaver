@@ -2,72 +2,46 @@
 
 ## Overview
 
-NodeWeaver is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, and others. Built with a focus on productivity automation, NodeWeaver integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
+NodeWeaver is an intelligent Retrieval-Augmented Generation (RAG) classifier API designed for automatic task categorization and real-time topic detection. The system leverages semantic embeddings and weighted node convergence to classify text into categories like personal, work, academic, political, legal, and others. Built with a focus on productivity automation, NodeWeaver integrates seamlessly with AxTask and Google Sheets to provide intelligent task organization capabilities.
 
-**Version: 1.0.3 - Learning & Classification Enhancement** - NodeWeaver now features sophisticated learning mechanisms with classification correction and training data integration. The system can learn from misclassifications and adapt to domain-specific terminology, with enhanced political/legal category detection for better government meeting classification.
+**Version: 1.0.3 - Learning & Classification Enhancement** — NodeWeaver features sophisticated learning mechanisms with classification correction and training data integration. The system can learn from misclassifications and adapt to domain-specific terminology, with enhanced political/legal category detection for better government meeting classification.
 
-**Live Audio Topic Detection** - NodeWeaver features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
+**Live Audio Topic Detection** — NodeWeaver features real-time audio processing capabilities, perfect for analyzing debates, meetings, YouTube videos, and any audio content. Users can upload audio files or use live microphone input to get instant topic classification as the content plays.
 
 The system implements a sophisticated architecture where topics emerge from weighted node convergence using clustering algorithms, allowing for dynamic discovery of new patterns and categories in text data. This approach enables the system to adapt and learn from usage patterns while maintaining high classification accuracy.
 
-## Recent Changes (2025-08-04)
+## Recent Changes
 
 ### Version 1.0.3 - Learning & Classification Enhancement (Latest)
-✓ Added sophisticated learning mechanisms with classification correction and training data integration
-✓ New /api/v1/correct endpoint to correct misclassifications and learn from them
-✓ New /api/v1/train endpoint to add labeled training examples for category improvement
-✓ Enhanced category detection with dedicated "legal" category and improved political keywords
-✓ Better confidence scoring for legal/political categories (0.85 vs 0.7) for more accurate classification
-✓ Real-world testing: "city council meeting" now correctly classified as political (0.9) vs work (0.8)
+✓ Added `/api/v1/correct` endpoint — correct any misclassification; system stores the feedback as a training example
+✓ Added `/api/v1/train` endpoint — provide labeled examples to reinforce any category
+✓ New dedicated `legal` category with specialized keywords (court, judge, attorney, ordinance, compliance…)
+✓ Enhanced `political` keywords: city council, zoning, municipal, civic, public hearing, ordinance, regulation
+✓ Legal and political categories now carry 0.85 base confidence vs. 0.7 for generic categories
+✓ Real-world fix: "Attend city council meeting about zoning changes" → political (0.9), legal (0.85), work (0.8)
+✓ Keyword extraction logs learned terms so future enhancements can make the vocabulary dynamic
 ✓ Comprehensive learning documentation in LEARNING_MECHANISMS.md
-✓ Keyword extraction and storage from training data for continuous improvement
+✓ Post-merge setup script created at scripts/post-merge.sh for automated dependency sync after task merges
+
+### AxTask HTTP Integration (Task #1 merge)
+✓ `/api/v1/health` — structured JSON health check (no auth required); designed for AxTask polling
+✓ API key middleware — `X-API-Key` header enforced on all `/api/v1/*` except `/health`; skipped in dev when `NODEWEAVER_API_KEY` is unset
+✓ Native CORS support — `OPTIONS` preflight handled before auth; origins configurable via `NODEWEAVER_ALLOWED_ORIGINS`
+✓ AxTask webhook callback — background-thread `POST` to `AXTASK_WEBHOOK_URL` on topic emergence; 5-second timeout, never blocks
+✓ TypeScript HTTP client — `integration/nodeweaver-client.ts` with typed methods, retry/backoff, AbortController timeout
+✓ Docker Compose overlay — `integration/docker-compose.nodeweaver.yml` for running NodeWeaver alongside AxTask locally
+✓ Integration docs — `integration/README.md` with architecture diagram, env var tables, wiring guide, auth contract, webhook payload spec
 
 ### Version 1.0.2 - Multi-Classification Enhancement
-✓ Implemented multi-label classification - entries can have multiple topics/categories
-✓ Updated business rules for many-to-many relationships between entries and topics
-✓ Enhanced classification engine to return all matching categories with confidence scores
-✓ Added automatic topic associations based on similarity scoring
-✓ Improved keyword matching with better confidence calculation
-✓ Classification now shows both primary category and all related topics
-✓ Testing shows perfect results: "cake for birthday party" = personal + shopping
-✓ Complex text gets multiple categories: "meeting + cake" = work + personal + finance + shopping
+✓ Multi-label classification — entries can have multiple topics/categories with individual confidence scores
+✓ Many-to-many business rule between entries and topics
+✓ `all_categories` array in every classify response with per-category confidence
+✓ Automatic topic associations based on similarity scoring
+✓ "Find a cake for birthday party" → personal (0.85) + shopping (0.75)
 
-### System Debug and Gap Analysis
-✓ Fixed JavaScript "TopicSenseClient is not defined" errors - completed rebranding
-✓ Fixed Flask "'Flask' object has no attribute 'rag_engine'" - corrected extension access pattern
-✓ Analyzed classification system - identified "unknown" issue in user images
-✓ Created comprehensive SYSTEM_GAPS_ANALYSIS.md documenting current state and roadmap
-✓ Enhanced simple classification keywords for better categorization
-✓ System now functional with multi-label classification capabilities
-
-### Application Rebranding to NodeWeaver
-✓ Updated project name from TopicSense to NodeWeaver across all files
-✓ Updated pyproject.toml package name and description
-✓ Updated all documentation files (README.md, API_DOCUMENTATION.md, etc.)
-✓ Updated HTML templates and web interface branding
-✓ Updated Docker configuration and database references
-✓ Updated configuration files and initialization scripts
-
-### Version 1.0.1 Bug Fix Release
-✓ Fixed Flask extensions compatibility for production deployment
-✓ Resolved LSP type checking errors in app.py
-✓ Implemented proper Flask extensions pattern for service storage
-✓ Updated all version references to 1.0.1
-
-### Version 1.0.0 Release Preparation
-✓ Updated project metadata and versioning in pyproject.toml  
-✓ Created comprehensive VERSION.md with release history
-✓ Added CHANGELOG.md following Keep a Changelog format
-✓ Implemented proper MIT LICENSE
-✓ Created detailed CONTRIBUTING.md guidelines
-✓ Added comprehensive API_DOCUMENTATION.md
-✓ Created DEPLOYMENT.md with multiple deployment options
-✓ Implemented SECURITY.md with security policies
-✓ Added .gitignore for clean repository
-✓ Created Dockerfile with multi-stage build
-✓ Updated docker-compose.yml with production configuration
-✓ Added .env.example for environment setup
-✓ Implemented version information in application config
+### Earlier Releases
+✓ 1.0.1 — Flask extensions compatibility fix, correct `app.extensions` pattern
+✓ 1.0.0 — Initial production release with full RAG pipeline, audio processing, topic emergence, web UI
 
 ## User Preferences
 
@@ -75,70 +49,104 @@ Preferred communication style: Simple, everyday language.
 
 ## System Architecture
 
-### Backend Framework
-- **Flask Application**: Core web framework with RESTful API design
-- **SQLAlchemy ORM**: Database abstraction layer with declarative models
-- **Blueprint Architecture**: Modular API organization with separate blueprints for classification and topic management
+### Application Layer
+- **Flask Application** (`app.py`): `create_app()` factory with CORS middleware, API key auth, blueprint registration
+- **Gunicorn** (`main.py`): Production WSGI entry point on port 5000
+- **Blueprint Architecture**: `api/classifier.py`, `api/topics.py`, `api/audio.py`
+
+### Security & Networking
+- **API Key Auth**: `NODEWEAVER_API_KEY` env var; `X-API-Key` request header; dev-mode bypass when unset
+- **CORS**: Native (no flask-cors); origins from `NODEWEAVER_ALLOWED_ORIGINS` (comma-separated, default `*`)
+- **OPTIONS preflight**: Handled before auth fires
 
 ### Database Design
-- **PostgreSQL with pgvector**: Primary database with vector similarity search capabilities
-- **Vector Embeddings**: 384-dimensional vectors using sentence-transformers
-- **Node-Based Architecture**: Discrete semantic units stored as weighted nodes
-- **Topic Emergence**: Topics automatically detected through weighted node convergence using DBSCAN clustering
-- **Relationship Modeling**: Captures semantic relationships between nodes and topics
+- **PostgreSQL**: Primary database with JSONB and array support
+- **pgvector**: Vector similarity search (extension available; simple fallback active by default)
+- **Models**: `Node`, `Topic`, `Document`, `ClassificationLog`, `NodeRelationship`
+- **Vector Embeddings**: 384-dimensional vectors (sentence-transformers when available)
+- **Topic Emergence**: DBSCAN clustering on node embeddings
 
 ### Core Services
-- **RAG Engine**: Central classification engine coordinating embeddings, similarity search, and prediction
-- **Audio Processor**: Real-time audio transcription and topic detection service
-- **Embedding Service**: Text-to-vector conversion using rule-based and semantic approaches
-- **Topic Detector**: Clustering-based topic emergence detection with configurable thresholds
-- **Vector Similarity Search**: Text-based similarity search with future PostgreSQL pgvector integration
+- **SimpleRAGEngine** (`services/rag_engine_simple.py`): Active classification engine; keyword-based multi-label classifier with learning methods
+- **SimpleEmbeddingService** (`services/embeddings_simple.py`): Text-to-vector conversion (rule-based fallback)
+- **SimpleAudioProcessor** (`services/audio_processor_simple.py`): Audio transcription + classification
+- **Full RAG Engine** (`services/rag_engine.py`): Sentence-transformers engine (requires ML deps; currently in fallback mode)
 
-### API Architecture
-- **Classification Endpoint**: `/api/v1/classify` for single text classification
-- **Audio Processing Endpoints**: `/api/v1/audio/*` for real-time audio analysis and file upload
-- **Topics Management**: `/api/v1/topics` for topic discovery and retrieval
-- **Batch Processing**: Support for processing up to 100 texts simultaneously
-- **Live Audio Streaming**: Real-time topic updates with WebSocket-ready architecture
-- **Confidence Scoring**: Each classification includes confidence scores and similar topic/node discovery
+### Learning System
+- `correct_classification(text, correct_category)` — finds prior log entry, creates corrective training document
+- `add_training_data(text, category)` — stores high-confidence (0.95) labeled document; extracts keyword associations
+- `_update_category_keywords(text, category)` — logs significant terms for future vocabulary updates
+- Training documents flagged with `is_training_data: true` in `meta_data` JSON column
 
-### Frontend Components
-- **Web Interface**: Bootstrap-based dark theme UI for testing and documentation
-- **Live Audio Interface**: Real-time audio topic detection with visual feedback and transcription
-- **API Documentation**: Interactive documentation with code examples
-- **Test Interface**: Real-time classification testing with metadata support
+### Classification Categories
+`personal`, `work`, `academic`, `political`, `legal`, `health`, `finance`, `entertainment`, `travel`, `shopping`, `technology`, `other`
 
-### Integration Layer
-- **AxTask Client**: Python client for seamless AxTask productivity integration
-- **Google Apps Script**: JavaScript integration for Google Sheets automation
-- **RESTful API**: Platform-independent integration support
+| Category | Base Confidence | Notes |
+|---|---|---|
+| political | 0.85 | Municipal keywords: city council, zoning, ordinance, civic, municipal |
+| legal | 0.85 | Court, judge, attorney, compliance, statute, jurisdiction |
+| work | 0.9 | Meeting, project, deadline, office, colleague |
+| personal, health, finance | 0.8 | Standard confidence |
+| technology, entertainment, travel | 0.7 | Lower specificity |
 
-## External Dependencies
+### API Endpoints
 
-### Core Technologies
-- **Flask**: Web framework and API server
-- **SQLAlchemy**: Database ORM and query builder
-- **PostgreSQL**: Primary database with JSONB and array support
-- **pgvector**: Vector similarity search extension
-- **sentence-transformers**: Text embedding generation (all-MiniLM-L6-v2 model)
+| Method | Path | Auth | Purpose |
+|---|---|---|---|
+| GET | `/api/v1/health` | None | Health check for AxTask polling |
+| POST | `/api/v1/classify` | Key | Single text classification |
+| POST | `/api/v1/classify/batch` | Key | Up to 100 texts at once |
+| POST | `/api/v1/train` | Key | Add labeled training example |
+| POST | `/api/v1/correct` | Key | Correct a misclassification |
+| GET | `/api/v1/categories` | Key | List available categories |
+| GET | `/api/v1/topics` | Key | List topics |
+| GET | `/api/v1/topics/<id>` | Key | Topic detail |
+| POST | `/api/v1/topics/detect` | Key | Run clustering + fire webhook |
+| POST | `/api/v1/topics/similar` | Key | Find topics similar to text |
+| GET | `/api/v1/nodes` | Key | List knowledge-graph nodes |
+| GET | `/api/v1/stats` | Key | Category/node counts |
+| POST | `/api/v1/audio/upload` | Key | Upload audio for classification |
+| GET | `/api/v1/version` | None | Version info |
 
-### Machine Learning Libraries
-- **scikit-learn**: Clustering algorithms (DBSCAN, KMeans) for topic detection
-- **numpy**: Numerical computing for vector operations
-- **scipy**: Scientific computing for similarity calculations
+### AxTask Integration Layer
+- **TypeScript client**: `integration/nodeweaver-client.ts` — `classify`, `classifyBatch`, `getTopics`, `health` methods; retry with exponential backoff; typed errors
+- **Python client**: `integration/axtask_client.py`
+- **Google Apps Script**: `integration/google_apps_script.js`
+- **Docker Compose overlay**: `integration/docker-compose.nodeweaver.yml`
+- **Webhook**: Topic emergence fires background POST to `AXTASK_WEBHOOK_URL`
 
-### Integration Services
-- **AxTask**: Productivity automation platform integration
-- **Google Sheets API**: Apps Script integration for spreadsheet automation
-- **Google Apps Script**: Server-side JavaScript for Google Workspace
+### Key Environment Variables
 
-### Development Tools
-- **Docker**: Containerization with PostgreSQL and pgvector setup
-- **Bootstrap**: Frontend UI framework with dark theme
-- **Font Awesome**: Icon library for UI components
-- **JavaScript Fetch API**: Client-side API communication
+| Variable | Required | Description |
+|---|---|---|
+| `DATABASE_URL` | yes | PostgreSQL connection string |
+| `SESSION_SECRET` | yes | Flask session secret |
+| `NODEWEAVER_API_KEY` | recommended | Shared secret for `X-API-Key` auth; skipped in dev when unset |
+| `NODEWEAVER_ALLOWED_ORIGINS` | no | Comma-separated CORS origins; default `*` |
+| `AXTASK_WEBHOOK_URL` | no | URL to POST topic-emergence events to |
 
-### Optional Enhancements
-- **Redis**: Caching layer for improved response times (configurable)
-- **OpenAI API**: Alternative embedding provider (configurable)
-- **Various Embedding Models**: Configurable through environment variables
+### Frontend Routes
+- `/` — Main dashboard
+- `/test` — Classification test interface
+- `/docs` — API documentation
+- `/live` — Live audio topic detection
+
+### Important Files
+- `app.py` — Flask app factory with auth/CORS middleware
+- `main.py` — WSGI entry point
+- `config.py` — All configuration constants and category definitions
+- `models.py` — SQLAlchemy models
+- `services/rag_engine_simple.py` — Active classification engine with learning methods
+- `api/classifier.py` — classify, batch, train, correct endpoints
+- `api/topics.py` — topics + webhook firing
+- `scripts/post-merge.sh` — Post-merge dependency sync script
+- `integration/README.md` — AxTask wiring guide
+- `integration/nodeweaver-client.ts` — TypeScript HTTP client for AxTask
+- `LEARNING_MECHANISMS.md` — Detailed learning system documentation
+- `API_DOCUMENTATION.md` — Full API reference
+- `VERSION.md` — Version history
+
+## Known Limitations / Notes
+- ML packages (sentence-transformers, numpy, scikit-learn) have a uv lock conflict and run in simple/fallback mode; classification uses keyword matching, not semantic embeddings
+- Topic detection in simple mode returns existing DB topics rather than truly novel clusters; AxTask should de-duplicate webhook events by `topic_id`
+- The "main" workflow (AxTask-specific) was removed; only "Start application" is active
