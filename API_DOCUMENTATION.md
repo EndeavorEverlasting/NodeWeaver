@@ -56,9 +56,27 @@ Layer 3 loads lazily on the first request that reaches it and is then cached in 
 
 ## Rate Limiting
 
-- Maximum 100 requests per minute per IP
+- Maximum **100 requests per minute per IP** (configurable via `RATE_LIMIT_PER_MINUTE` env var)
 - Batch processing limited to 100 texts per request
 - Audio files limited to 10 MB per upload
+
+When the limit is exceeded the server responds with **HTTP 429** and a `Retry-After` header indicating how many seconds to wait before retrying:
+
+```http
+HTTP/1.1 429 Too Many Requests
+Retry-After: 42
+Content-Type: application/json
+
+{
+  "error": "Too Many Requests",
+  "message": "Rate limit exceeded. Maximum 100 requests per minute per IP.",
+  "retry_after": 42
+}
+```
+
+| HTTP Status | Meaning |
+|---|---|
+| 429 | Rate limit exceeded — check `Retry-After` header |
 
 ---
 
@@ -382,6 +400,7 @@ NodeWeaver uses a 5-second timeout and swallows all errors — it never blocks o
 | 400 | Validation error — check request body |
 | 401 | Missing or invalid `X-API-Key` |
 | 404 | Endpoint not found |
+| 429 | Rate limit exceeded — check `Retry-After` header |
 | 500 | Internal server error |
 | 503 | Service degraded (database unreachable) |
 

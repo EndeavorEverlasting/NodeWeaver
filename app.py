@@ -1,6 +1,8 @@
 import os
 import logging
 import threading
+import time
+from collections import defaultdict
 from datetime import datetime
 from flask import Flask, render_template, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
@@ -33,12 +35,59 @@ def _add_cors_headers(response, allowed_origins):
 def create_app():
     app = Flask(__name__)
     app.secret_key = os.environ.get("SESSION_SECRET", "dev-secret-key-change-in-production")
-    app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)
 
     # CORS configuration from env var (comma-separated origins, default '*' in dev)
     raw_origins = os.environ.get('NODEWEAVER_ALLOWED_ORIGINS', '*')
     allowed_origins = [o.strip() for o in raw_origins.split(',') if o.strip()]
     app.config['ALLOWED_ORIGINS'] = allowed_origins
+
+    # ------------------------------------------------------------------ #
+    # Rate limiting — in-memory fixed-window counter per IP               #
+    # ------------------------------------------------------------------ #
+    _raw_limit = os.environ.get('RATE_LIMIT_PER_MINUTE', '100')
+    try:
+        rate_limit = int(_raw_limit)
+        if rate_limit <= 0:
+            raise ValueError("must be positive")
+    except ValueError:
+        raise ValueError(
+            f"RATE_LIMIT_PER_MINUTE must be a positive integer, got: {_raw_limit!r}"
+        )
+    _rate_lock = threading.Lock()
+    # {ip: [window_start_epoch, request_count]}
+    _rate_counters: dict = defaultdict(lambda: [0.0, 0])
+
+    @app.before_request
+    def enforce_rate_limit():
+        if not request.path.startswith('/api/v1/'):
+            return
+        if request.method == 'OPTIONS':
+            return
+
+        ip = request.remote_addr or '0.0.0.0'
+        now = time.time()
+        window_seconds = 60
+
+        with _rate_lock:
+            entry = _rate_counters[ip]
+            window_start, count = entry
+            if now - window_start >= window_seconds:
+                entry[0] = now
+                entry[1] = 1
+            else:
+                entry[1] += 1
+                count = entry[1]
+                if count > rate_limit:
+                    retry_after = int(window_seconds - (now - window_start)) + 1
+                    response = jsonify({
+                        'error': 'Too Many Requests',
+                        'message': f'Rate limit exceeded. Maximum {rate_limit} requests per minute per IP.',
+                        'retry_after': retry_after,
+                    })
+                    response.status_code = 429
+                    response.headers['Retry-After'] = str(retry_after)
+                    return response
 
     # Configure the database
     database_url = os.environ.get("DATABASE_URL", "postgresql://rag_user:rag_pass@localhost:5432/topicsense")
