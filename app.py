@@ -58,11 +58,23 @@ def create_app():
         import models
         db.create_all()
 
-        from services.rag_engine_simple import SimpleRAGEngine
         from services.classification_pipeline import ClassificationPipeline
         from config import Config
 
-        rag_engine = SimpleRAGEngine(db)
+        try:
+            from services.rag_engine import RAGEngine
+            rag_engine = RAGEngine(db)
+            app.extensions['rag_engine_type'] = 'full'
+            logger.info("Full RAG Engine initialized with sentence-transformers embeddings")
+        except Exception as e:
+            logger.error(
+                f"Full RAG Engine failed to initialize: {e}. "
+                "Falling back to SimpleRAGEngine — sentence-transformers classification DISABLED."
+            )
+            from services.rag_engine_simple import SimpleRAGEngine
+            rag_engine = SimpleRAGEngine(db)
+            app.extensions['rag_engine_type'] = 'simple'
+
         app.extensions['rag_engine'] = rag_engine
 
         pipeline = ClassificationPipeline(
@@ -72,7 +84,7 @@ def create_app():
             l2_threshold=Config.NW_L2_CONFIDENCE_THRESHOLD,
         )
         app.extensions['classification_pipeline'] = pipeline
-        logger.info("Simple RAG Engine and Classification Pipeline initialized")
+        logger.info("Classification Pipeline initialized")
 
     # ------------------------------------------------------------------ #
     # CORS: handle OPTIONS preflight before any auth check fires          #
@@ -149,6 +161,7 @@ def create_app():
             except Exception:
                 embedding_status = 'unavailable'
 
+        rag_engine_type = app.extensions.get('rag_engine_type', 'unknown')
         overall_healthy = db_status == 'healthy' and embedding_status == 'ready'
         status_code = 200 if overall_healthy else 503
         return jsonify({
@@ -159,6 +172,7 @@ def create_app():
             'components': {
                 'database': db_status,
                 'embedding_model': embedding_status,
+                'rag_engine': rag_engine_type,
             },
             'timestamp': datetime.utcnow().isoformat() + 'Z'
         }), status_code

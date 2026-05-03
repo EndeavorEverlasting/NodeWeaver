@@ -19,7 +19,8 @@ class EmbeddingService:
         try:
             logger.info(f"Loading embedding model: {self.model_name}")
             self.model = SentenceTransformer(self.model_name)
-            logger.info(f"Model loaded successfully. Dimension: {self.model.get_sentence_embedding_dimension()}")
+            dim = self.model.get_embedding_dimension() if hasattr(self.model, 'get_embedding_dimension') else self.model.get_sentence_embedding_dimension()
+            logger.info(f"Model loaded successfully. Dimension: {dim}")
         except Exception as e:
             logger.error(f"Failed to load embedding model: {str(e)}")
             raise
@@ -44,6 +45,8 @@ class EmbeddingService:
     
     def get_dimension(self) -> int:
         """Get embedding dimension"""
+        if hasattr(self.model, 'get_embedding_dimension'):
+            return self.model.get_embedding_dimension()
         return self.model.get_sentence_embedding_dimension()
     
     def similarity(self, embedding1: np.ndarray, embedding2: np.ndarray) -> float:

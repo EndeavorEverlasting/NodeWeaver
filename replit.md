@@ -12,7 +12,15 @@ The system implements a sophisticated architecture where topics emerge from weig
 
 ## Recent Changes
 
-### Version 1.0.3 - Learning & Classification Enhancement (Latest)
+### Task #3 - ML Dependency Fix & Full RAG Engine (Latest)
+✓ Fixed `pyproject.toml` — removed 1100+ line `[tool.uv.sources]` block that erroneously mapped `sentence-transformers` and hundreds of unrelated packages to the pytorch-cpu index (which doesn't host them), making `uv sync` unsolvable on Linux
+✓ Clean `pyproject.toml` — kept only minimal `[[tool.uv.index]]` for pytorch-cpu with `torch` mapped to it for Linux (CPU-only, avoids multi-GB CUDA downloads); all other packages resolve from PyPI
+✓ Installed `sentence-transformers`, `scikit-learn`, `numpy`, `librosa` and their transitive deps via `uv sync`; `uv.lock` updated (95 packages, version-pinned)
+✓ `app.py` updated — tries `RAGEngine` (full, sentence-transformers) at startup, falls back to `SimpleRAGEngine` only if import fails
+✓ `services/embeddings.py` — forward-compatible `get_embedding_dimension()` call (fixes FutureWarning from sentence-transformers API rename)
+✓ App starts with full RAG Engine: `INFO:app:Full RAG Engine initialized with sentence-transformers embeddings`
+
+### Version 1.0.3 - Learning & Classification Enhancement
 ✓ Added `/api/v1/correct` endpoint — correct any misclassification; system stores the feedback as a training example
 ✓ Added `/api/v1/train` endpoint — provide labeled examples to reinforce any category
 ✓ New dedicated `legal` category with specialized keywords (court, judge, attorney, ordinance, compliance…)
