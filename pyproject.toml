@@ -1,5 +1,5 @@
 [project]
-name = "nodeweaver"
+name = "repl-nix-workspace"
 version = "1.0.3"
 description = "NodeWeaver - An intelligent RAG classifier API for automatic task categorization with audio processing capabilities"
 authors = [

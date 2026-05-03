@@ -1,0 +1,78 @@
+version: '3.8'
+
+# NodeWeaver service block for AxTask integration.
+#
+# Usage (from the AxTask repo root):
+#   docker compose \
+#     -f docker-compose.yml \
+#     -f services/nodeweaver/docker-compose.nodeweaver.yml \
+#     up
+#
+# Required env vars on the AxTask side:
+#   NODEWEAVER_BASE_URL   - set to http://nodeweaver:5000 when using this compose file
+#   NODEWEAVER_API_KEY    - must match the value set here
+
+services:
+  nodeweaver:
+    build:
+      context: ${NODEWEAVER_REPO_PATH:?Set NODEWEAVER_REPO_PATH to the local path of the NodeWeaver repo}
+      dockerfile: Dockerfile
+      target: production
+    image: nodeweaver:latest
+    container_name: nodeweaver
+    restart: unless-stopped
+    environment:
+      DATABASE_URL: ${NODEWEAVER_DATABASE_URL:-postgresql://rag_user:rag_pass@nodeweaver-db:5432/nodeweaver}
+      SESSION_SECRET: ${SESSION_SECRET:-change-me-in-production}
+      NODEWEAVER_API_KEY: ${NODEWEAVER_API_KEY}
+      NODEWEAVER_ALLOWED_ORIGINS: ${NODEWEAVER_ALLOWED_ORIGINS:-*}
+      AXTASK_WEBHOOK_URL: ${AXTASK_WEBHOOK_URL:-}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      EMBEDDING_MODEL: all-MiniLM-L6-v2
+      VECTOR_DIMENSION: "384"
+      CONVERGENCE_THRESHOLD: "0.7"
+      MIN_CLUSTER_SIZE: "3"
+      COHERENCE_THRESHOLD: "0.6"
+      MAX_INPUT_LENGTH: "10000"
+    ports:
+      - "${NODEWEAVER_PORT:-5000}:5000"
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:5000/api/v1/health', timeout=5)"
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    networks:
+      - axtask-network
+
+  nodeweaver-db:
+    image: pgvector/pgvector:pg15
+    container_name: nodeweaver-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: nodeweaver
+      POSTGRES_USER: rag_user
+      POSTGRES_PASSWORD: ${NODEWEAVER_DB_PASSWORD:-rag_pass}
+    volumes:
+      - nodeweaver_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U rag_user -d nodeweaver"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - axtask-network
+
+volumes:
+  nodeweaver_postgres_data:
+    driver: local
+
+networks:
+  axtask-network:
+    external: true   # assumes AxTask already declares this network
