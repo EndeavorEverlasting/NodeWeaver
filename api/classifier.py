@@ -3,6 +3,7 @@ import time
 import logging
 from copy import deepcopy
 from utils.validators import validate_classification_input
+from utils.batch_payloads import normalize_batch_payload
 from models import ClassificationLog
 from app import db
 from config import Config
@@ -81,40 +82,14 @@ def classify_text():
 
 @classifier_bp.route('/classify/batch', methods=['POST'])
 def classify_batch():
-    """Classify multiple texts in batch"""
+    """Classify multiple generic texts or AxTask task payloads in batch."""
     try:
         start_time = time.time()
         
         data = request.get_json()
-        if not data or 'texts' not in data:
-            return jsonify({'error': 'No texts array provided'}), 400
-        
-        texts = data.get('texts')
-        shared_metadata = deepcopy(data.get('metadata', {})) if isinstance(data.get('metadata'), dict) else {}
-        metadata_list = data.get('metadata_list')
-        payload_list = None
-
-        if texts is None and isinstance(data.get('tasks'), list):
-            texts = []
-            metadata_list = []
-            payload_list = []
-            for task in data['tasks']:
-                task_text = extract_task_text(task)
-                if task_text:
-                    texts.append(task_text)
-                    task_metadata = deepcopy(task.get('metadata', {})) if isinstance(task.get('metadata'), dict) else {}
-                    if is_axtask_payload(task):
-                        task_metadata = build_axtask_metadata(task_metadata)
-                    metadata_list.append(task_metadata)
-                    payload_list.append(task)
-
-        if not isinstance(texts, list) or len(texts) == 0:
-            return jsonify({'error': 'texts or tasks must be a non-empty array'}), 400
-
-        if isinstance(shared_metadata, dict) and any(key in shared_metadata for key in ('classification_profile', 'target_system', 'source')):
-            shared_metadata = dict(shared_metadata)
-        elif isinstance(data, dict) and 'tasks' in data:
-            shared_metadata = build_axtask_metadata(shared_metadata)
+        texts, shared_metadata, metadata_list, payload_list, validation_error = normalize_batch_payload(data)
+        if validation_error:
+            return jsonify({'error': validation_error}), 400
         
         if len(texts) > 100:  # Limit batch size
             return jsonify({'error': 'Batch size limited to 100 texts'}), 400
